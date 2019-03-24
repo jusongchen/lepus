@@ -4,6 +4,7 @@ package main
 
 import (
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -14,8 +15,9 @@ import (
 	"github.com/go-chi/chi"
 )
 
+const version = "0.1"
 const maxUploadSize = 20 * 1024 * 1024 // 20 mb
-
+const defaultPort = "8080"
 const dirForPhotos = "./photos"
 
 func uploadFileHandler() http.HandlerFunc {
@@ -91,13 +93,25 @@ func randToken(len int) string {
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "usage: %s -port <port number>\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
+	portInt := flag.Int("port", 8080, "TCP port to listen on")
+	flag.Parse()
+
+	if len(os.Args) == 1 {
+		flag.Usage()
+		return
+	}
+
 	// create the director for uploaded files
 	path := dirForPhotos
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err1 := os.Mkdir(path, 0700)
 		if err1 != nil {
-			fmt.Fprintf(os.Stderr, "Create dir '%s' failed:%s", path, err1)
-			os.Exit(1)
+			log.Fatalf("Create dir '%s' failed:%s", path, err1)
 		}
 	}
 
@@ -106,6 +120,8 @@ func main() {
 	r.Get("/", http.FileServer(http.Dir("./public")).ServeHTTP)
 
 	r.Post("/upload", uploadFileHandler())
-	log.Print("Lepus started on localhost:8080 ")
-	log.Fatal(http.ListenAndServe(":8080", r))
+
+	port := fmt.Sprintf(":%d", *portInt)
+	log.Printf("Server Lepus(v%s) started on port %s", version, port)
+	log.Fatal(http.ListenAndServe(port, r))
 }
