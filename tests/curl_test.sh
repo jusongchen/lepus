@@ -1,0 +1,1 @@
+curl -F 'uploadFile=@/usr/local/go/doc/gopher/pencil/gopherhat.jpg' http://localhost:8080/upload
