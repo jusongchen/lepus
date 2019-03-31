@@ -16,8 +16,9 @@ import (
 const version = "0.2"
 const maxUploadSize = 20 * 1024 * 1024 // 20 mb
 const defaultPort = "8080"
-const dirForPhotos = "./photos"
+const dirForPhotos = "photos"
 const dirForStatic = "./public"
+const registrationHTMLFilename = "registration.html"
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(http.StatusBadRequest)
@@ -61,9 +62,12 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Get("/", http.FileServer(http.Dir("./public")).ServeHTTP)
+	registerStaticWeb(r, dirForStatic)
+
+	// r.Get("/", http.FileServer(http.Dir(dirForStatic)).ServeHTTP)
 
 	r.Post("/upload", uploadFileHandler())
+	r.Get("/register", mainHandler())
 	r.Post("/register", registerHandler())
 
 	port := fmt.Sprintf(":%d", *portInt)
