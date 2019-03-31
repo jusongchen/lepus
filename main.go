@@ -32,6 +32,7 @@ func randToken(len int) string {
 }
 
 func main() {
+	fmt.Printf("Lepus version:%s", version)
 
 	if _, err := os.Stat(dirForStatic); os.IsNotExist(err) {
 		log.Fatalf("Directory for static web content does not exist:%s", dirForStatic)
