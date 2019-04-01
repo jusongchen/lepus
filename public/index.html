@@ -1,17 +1,28 @@
 <!doctype html>
 <html lang="en">
-<head>
+  <head>
+    <!-- Required meta tags -->
     <meta charset="utf-8">
-    <title>Single file upload</title>
-</head>
-<body>
-<h1>老师你好活动测试程序</h1>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-<form action="/upload" method="post" enctype="multipart/form-data">
-    Name: <input type="text" name="name"><br>
-    <!-- Email: <input type="email" name="email"><br>     -->
-    Files: <input type="file" name="uploadFile"><br><br>
-    <input type="submit" value="Submit">
-</form>
-</body>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="css/bootstrap.min.css"  crossorigin="anonymous">
+
+    <title>老师,你好!</title>
+  </head>
+  <body>
+    <h1>老师你好活动测试程序</h1>
+    <div class="form-group">
+        <p>活动说明</p>    
+    </div>
+    <div class="form-group">
+        <div class="container-fluid">
+        <form action="/register" method="get" >
+            <input type="submit" value="上传相片或视频">
+        </form>
+        </div>
+    </div>
+        
+  </body>
+
 </html>
