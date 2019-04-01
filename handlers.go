@@ -90,6 +90,7 @@ func registerHandler() http.HandlerFunc {
 			fmt.Println("key:", k)
 			fmt.Println("val:", strings.Join(v, ""))
 		}
+		http.Redirect(w, r, "/uploadFile.html", http.StatusSeeOther)
 	})
 }
 
