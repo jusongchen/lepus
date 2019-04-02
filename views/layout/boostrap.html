@@ -1,3 +1,4 @@
+{{define "bootstrap"}}
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,26 +9,11 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css"  crossorigin="anonymous">
 
-    <title>Hello,Sir!</title>
+    <title>老师，谢谢你！</title>
   </head>
   <body>
-    <h1>老师你好活动测试程序. </h1>
     <div class="container-fluid">
-      <form>
-        <div class="form-group">
-          <label for="exampleFormControlFile1">选择上传照片或视频</label>
-          <input type="file" class="form-control-file" id="exampleFormControlFile1">
-        </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="checkbox" id="inlineCheckbox1" value="option1">
-          <label class="form-check-label" for="inlineCheckbox1">1</label>
-        </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="checkbox" id="inlineCheckbox2" value="option2">
-          <label class="form-check-label" for="inlineCheckbox2">2</label>
-        </div>
-      </form>
-      <h1> 本界面开发未完成。。。</h1>
+        {{template "yield" .}}
     </div>
         
     <!-- Optional JavaScript -->
@@ -36,4 +22,6 @@
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script> -->
     <script src="js/bootstrap.min.js"  crossorigin="anonymous"></script>
   </body>
+
 </html>
+{{end}}
