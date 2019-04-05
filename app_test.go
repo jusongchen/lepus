@@ -24,12 +24,7 @@ func TestApp(t *testing.T) {
 	go func() {
 		app.Start(addr, dirForStatic, serverVersion, receiveDir)
 	}()
-
-	urlVals := map[string][]string{"name": []string{"陈居松"},
-		"gradYear":  []string{"90"},
-		"educators": []string{"%E6%9B%BE%E6%95%8F%E6%AF%85", "余伟然", "%E9%99%88%E7%87%95%E5%8D%8E"},
-	}
-
+	val := url.Values{"name": {"陈居松"}, "gradYear": {"90"}, "educators": {"%E6%9B%BE%E6%95%8F%E6%AF%85", "余伟然", "%E9%99%88%E7%87%95%E5%8D%8E"}}
 	tt := []struct {
 		tcName   string
 		path     string
@@ -39,9 +34,8 @@ func TestApp(t *testing.T) {
 	}{
 		{tcName: "home path /", path: "/", method: "GET", expect: "/signup"},
 		{tcName: "get /signup", path: "/signup", method: "GET", expect: "/signup"},
-		{tcName: "post /signup", path: "/signup", method: "POST", expect: "%E9%99%88%E7%87%95%E5%8D%8E", urlValue: urlVals},
-		{tcName: "post /signup", path: "/signup", method: "POST", expect: "余伟然", urlValue: urlVals},
-		{tcName: "post /signup", path: "/signup", method: "POST", expect: "余伟然", urlValue: urlVals},
+		{tcName: "post /signup", path: "/signup", method: "POST", expect: "%E9%99%88%E7%87%95%E5%8D%8E", urlValue: val},
+		{tcName: "post /signup", path: "/signup", method: "POST", expect: "余伟然", urlValue: val},
 	}
 	baseURL := "http://localhost" + addr
 	for _, tc := range tt {

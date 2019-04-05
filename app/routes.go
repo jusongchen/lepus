@@ -2,21 +2,55 @@ package app
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/go-chi/chi/middleware"
 )
 
+func newSessionID(name string, gradYear string, educators []string) string {
+
+	signupData := struct {
+		Name              string
+		GradYear          string
+		SelectedEducators []string
+	}{
+		Name:              name,
+		GradYear:          gradYear,
+		SelectedEducators: educators,
+	}
+
+	b, err := json.Marshal(signupData)
+	if err != nil {
+		msg := fmt.Sprintf("json Marshall %v failed:%v", signupData, err)
+		log.Fatalf(msg)
+	}
+
+	return string(b)
+
+}
+
 func (s *lepus) routes(staticDir string) {
+
+	// A good base middleware stack
+	s.router.Use(middleware.RequestID)
+	s.router.Use(middleware.RealIP)
+	s.router.Use(middleware.Logger)
+	s.router.Use(middleware.Recoverer)
 
 	registerStaticWeb(s.router, staticDir)
 
 	s.router.Post("/upload", s.uploadHandler())
 	s.router.Handle("/signup", s.signupHandler())
+	s.router.Handle("/selectphoto", s.selectPhotoHandler())
 	s.router.HandleFunc("/about", s.handleAbout())
 	// s.router.HandleFunc("/", s.handleIndex())
+
 }
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
@@ -91,7 +125,16 @@ func (s *lepus) uploadHandler() http.HandlerFunc {
 			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte("SUCCESS"))
+
+		// w.Write([]byte("SUCCESS"))
+
+		// sessionID := string(r.Form["sessionID"][0])
+		// log.Printf("sessionID in upload:%+v", sessionID)
+		// v := NewView("bootstrap", "views/uploadnext.html")
+		// v.Render(w, sessionID)
+		TODO here : Jusong Pass session to context
+		
+		http.Redirect(w, r, "/uploadnext", http.StatusSeeOther)
 	})
 }
 
@@ -102,31 +145,39 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 			// boostrap is a template name defined in layout/boostrap.html
 			v := NewView("bootstrap", "views/signup.html")
 			v.Render(w, s.educatorNames)
+
+		default:
+			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+		}
+	})
+}
+
+func (s *lepus) selectPhotoHandler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		// case "GET":
+		// boostrap is a template name defined in layout/boostrap.html
+		// v := NewView("bootstrap", "views/signup.html")
+		// v.Render(w, s.educatorNames)
 		case "POST":
+
 			if err := r.ParseForm(); err != nil {
 				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
 				return
 			}
-			fmt.Println("path", r.URL.Path)
-			fmt.Println(r.Form) // print information on server side.
 
-			educatorNames := r.Form["educators"]
-
-			fmt.Printf("educator Names %s\n", educatorNames)
+			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
+			sessionID := newSessionID(r.Form["name"][0], r.Form["gradYear"][0], r.Form["educators"])
+			log.Printf("sessionID:%+v", sessionID)
+			v := NewView("bootstrap", "views/selectphoto.html")
 			data := struct {
-				EducatorNames   []string
-				Token           string
-				ParticipantName string
-				GradYear        string
+				EducatorNames []string
+				SessionID     string
 			}{
-				EducatorNames:   educatorNames,
-				Token:           "this is a token to be generated",
-				ParticipantName: r.Form["name"][0],
-				GradYear:        r.Form["gradYear"][0],
+				EducatorNames: r.Form["educators"],
+				SessionID:     sessionID,
 			}
-			v := NewView("bootstrap", "views/upload.html")
 			v.Render(w, data)
-			// http.Redirect(w, r, "/upload", http.StatusSeeOther)
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}

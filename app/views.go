@@ -38,5 +38,6 @@ func NewView(layout string, files ...string) *View {
 
 //Render renders the template with input data and write result to w
 func (v *View) Render(w http.ResponseWriter, data interface{}) error {
+	// v.Template.ExecuteTemplate(os.Stderr, v.Layout, data)
 	return v.Template.ExecuteTemplate(w, v.Layout, data)
 }
