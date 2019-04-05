@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 )
 
-func (s *server) routes(staticDir string) {
+func (s *lepus) routes(staticDir string) {
 
 	registerStaticWeb(s.router, staticDir)
 
-	s.router.Post("/upload", s.uploadFileHandler())
+	s.router.Post("/upload", s.uploadHandler())
 	s.router.Handle("/signup", s.signupHandler())
 	s.router.HandleFunc("/about", s.handleAbout())
 	// s.router.HandleFunc("/", s.handleIndex())
@@ -30,26 +30,31 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func (s *server) uploadFileHandler() http.HandlerFunc {
+func (s *lepus) uploadHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		// validate file size
 		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			renderError(w, "FILE_TOO_BIG", http.StatusBadRequest)
+			renderError(w, fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize), http.StatusBadRequest)
 			return
 		}
 
+		fmt.Printf("upload photo form value:%s\n", r.Form)
+
 		// parse and validate file and post parameters
 		fileType := r.PostFormValue("type")
-		file, _, err := r.FormFile("uploadFile")
+		file, fileHeader, err := r.FormFile("uploadFile")
 		if err != nil {
-			renderError(w, "INVALID_FILE", http.StatusBadRequest)
+			renderError(w, fmt.Sprintf("内部错误: r.FromFile get error:%s", err), http.StatusBadRequest)
 			return
 		}
+		fmt.Printf("fileHeader: Filename %v Size %v", fileHeader.Filename, fileHeader.Size)
+
 		defer file.Close()
 		fileBytes, err := ioutil.ReadAll(file)
 		if err != nil {
-			renderError(w, "INVALID_FILE", http.StatusBadRequest)
+			renderError(w, "内部错误，无法读取上传文件", http.StatusBadRequest)
 			return
 		}
 
@@ -58,10 +63,9 @@ func (s *server) uploadFileHandler() http.HandlerFunc {
 		switch filetype {
 		case "image/jpeg", "image/jpg":
 		case "image/gif", "image/png":
-		case "application/pdf":
 			break
 		default:
-			renderError(w, "INVALID_FILE_TYPE", http.StatusBadRequest)
+			renderError(w, "不认识的文件格式", http.StatusBadRequest)
 			return
 		}
 
@@ -91,7 +95,7 @@ func (s *server) uploadFileHandler() http.HandlerFunc {
 	})
 }
 
-func (s *server) signupHandler() http.HandlerFunc {
+func (s *lepus) signupHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
@@ -109,24 +113,34 @@ func (s *server) signupHandler() http.HandlerFunc {
 			educatorNames := r.Form["educators"]
 
 			fmt.Printf("educator Names %s\n", educatorNames)
-
-			v := NewView("bootstrap", "views/uploadFile.html")
-
-			v.Render(w, educatorNames)
+			data := struct {
+				EducatorNames   []string
+				Token           string
+				ParticipantName string
+				GradYear        string
+			}{
+				EducatorNames:   educatorNames,
+				Token:           "this is a token to be generated",
+				ParticipantName: r.Form["name"][0],
+				GradYear:        r.Form["gradYear"][0],
+			}
+			v := NewView("bootstrap", "views/upload.html")
+			v.Render(w, data)
+			// http.Redirect(w, r, "/upload", http.StatusSeeOther)
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}
 	})
 }
 
-func (s *server) handleAbout() http.HandlerFunc {
+func (s *lepus) handleAbout() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Lepus version:%s", s.version)
 	})
 }
 
-// func (s *server) handleIndex() http.HandlerFunc {
+// func (s *LepusServer) handleIndex() http.HandlerFunc {
 // 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+
 // 	})
 // }

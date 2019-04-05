@@ -1,0 +1,36 @@
+{{define "yield"}}
+
+  <form enctype="multipart/form-data" action="/upload" method="post">
+    <!-- <input type="hidden" name="token" value="{{.Token}}"/> -->
+    <input  name="token" value="{{.Token}}"/>
+    <input  name="name" value="{{.ParticipantName}}"/>
+    <input  name="gradYear" value="{{.GradYear}}"/>
+
+    <div class="form-group">
+      <label for="file1">选择要上传的照片或视频</label>
+      <input type="file" name="uploadFile"  id="file1">
+      <!-- <input type="file" name="uploadFile" class="form-control-file" id="file1"> -->
+    </div>
+    
+    <label for="selectEducatorChkBoxGrp">您想把这张相片或视频发送给哪几位老师？请选则一个或多个：</label>
+    <div class="checkbox-group required" id="selectEducatorChkBoxGrp">
+        {{range $i, $v := .EducatorNames}}
+        
+        <div class="form-check form-check-inline" >
+            <input class="form-check-input" type="checkbox" name = "educators" id= "edu{{$i}}" value={{$v}}>
+            <label class="form-check-label" for="edu{{$i}}">{{$v}}</label>
+        </div>
+        
+        {{end}}
+    </div>
+      <input name="next-action" class="col" type="submit" value="开始上传">
+    
+    <div class="form-group row">
+
+    </div>
+    <div class="form-group">
+      <input name="next-action" class="col" type="submit" value="赞助本次活动">
+    </div>
+
+  </form>
+{{end}}      

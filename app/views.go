@@ -8,6 +8,7 @@ import (
 
 const layoutFilePath = "views/layout/*.html"
 
+//View may be exposed
 type View struct {
 	Template *template.Template
 	Layout   string
@@ -21,6 +22,7 @@ func layoutFiles() []string {
 	return files
 }
 
+//NewView creates new templates by parsing go html template files
 func NewView(layout string, files ...string) *View {
 	files = append(files, layoutFiles()...)
 	t, err := template.ParseFiles(files...)
@@ -34,6 +36,7 @@ func NewView(layout string, files ...string) *View {
 	}
 }
 
+//Render renders the template with input data and write result to w
 func (v *View) Render(w http.ResponseWriter, data interface{}) error {
 	return v.Template.ExecuteTemplate(w, v.Layout, data)
 }

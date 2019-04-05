@@ -15,8 +15,9 @@
     </div>
     
     <div class="form-group">
-        <label >选择您表达感谢的老师：</label>
-                        
+        <label >选择您表达感谢的老师(请多选）：</label>
+        <p id="comment2" class="form-text text-muted">在下一步，针对你的单个相片或视频，您将进一步从现在选定的老师的相册中选择一个或某几个进行上传。</p>
+        
         <div class="checkbox-group required">
             {{range $i, $v := .}}
             
@@ -27,10 +28,10 @@
             
             {{end}}
         </div>
-        <small id="comment2" class="form-text text-muted">在下一步，针对某个相片或视频，您将进一步从现在选定的老师的相册中选择一个或某几个进行上传。</small>
         
     </div>
-    
-<input class="col" type="submit" value="提交">
+    <div class="form-group col" >
+        <input class="col" type="submit" value="下一步">
+    </div>
 </form>
 {{end}}
