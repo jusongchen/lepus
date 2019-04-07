@@ -2,7 +2,6 @@ package app
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,43 +10,35 @@ import (
 	"path/filepath"
 
 	"github.com/go-chi/chi/middleware"
+	"github.com/sirupsen/logrus"
 )
 
-func newSessionID(name string, gradYear string, educators []string) string {
-
-	signupData := struct {
-		Name              string
-		GradYear          string
-		SelectedEducators []string
-	}{
-		Name:              name,
-		GradYear:          gradYear,
-		SelectedEducators: educators,
-	}
-
-	b, err := json.Marshal(signupData)
-	if err != nil {
-		msg := fmt.Sprintf("json Marshall %v failed:%v", signupData, err)
-		log.Fatalf(msg)
-	}
-
-	return string(b)
-
-}
-
+/*
+	routing path:
+	at home / form post -> /signup form post -> /selectphoto form post -> /upload form post -> where2 form post, branching to:
+			1) home /
+			2) /selectphoto
+			3) /sponsor , post -> home /
+*/
 func (s *lepus) routes(staticDir string) {
 
 	// A good base middleware stack
+	logger := logrus.New()
+	logger.Formatter = &logrus.JSONFormatter{
+		// disable, as we set our own
+		DisableTimestamp: true,
+	}
+	s.router.Use(NewStructuredLogger(logger))
 	s.router.Use(middleware.RequestID)
 	s.router.Use(middleware.RealIP)
-	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
 
 	registerStaticWeb(s.router, staticDir)
 
-	s.router.Post("/upload", s.uploadHandler())
 	s.router.Handle("/signup", s.signupHandler())
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
+	s.router.Post("/upload", s.uploadHandler())
+	s.router.Post("/where2", s.where2Handler())
 	s.router.HandleFunc("/about", s.handleAbout())
 	// s.router.HandleFunc("/", s.handleIndex())
 
@@ -132,9 +123,9 @@ func (s *lepus) uploadHandler() http.HandlerFunc {
 		// log.Printf("sessionID in upload:%+v", sessionID)
 		// v := NewView("bootstrap", "views/uploadnext.html")
 		// v.Render(w, sessionID)
-		TODO here : Jusong Pass session to context
-		
-		http.Redirect(w, r, "/uploadnext", http.StatusSeeOther)
+		// TODO here : Jusong Pass session to context
+
+		// http.Redirect(w, r, "/uploadnext", http.StatusSeeOther)
 	})
 }
 
@@ -167,7 +158,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			}
 
 			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
-			sessionID := newSessionID(r.Form["name"][0], r.Form["gradYear"][0], r.Form["educators"])
+			sessionID := getSessionID(w, r)
 			log.Printf("sessionID:%+v", sessionID)
 			v := NewView("bootstrap", "views/selectphoto.html")
 			data := struct {
@@ -175,7 +166,39 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				SessionID     string
 			}{
 				EducatorNames: r.Form["educators"],
-				SessionID:     sessionID,
+				SessionID:     sessionID.JSONMarshal(),
+			}
+			v.Render(w, data)
+		default:
+			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+		}
+	})
+}
+
+func (s *lepus) where2Handler() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		// case "GET":
+		// boostrap is a template name defined in layout/boostrap.html
+		// v := NewView("bootstrap", "views/signup.html")
+		// v.Render(w, s.educatorNames)
+		case "POST":
+
+			if err := r.ParseForm(); err != nil {
+				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
+				return
+			}
+
+			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
+			sessionID := getSessionID(w, r)
+			log.Printf("sessionID:%+v", sessionID)
+			v := NewView("bootstrap", "views/selectphoto.html")
+			data := struct {
+				EducatorNames []string
+				SessionID     string
+			}{
+				EducatorNames: r.Form["educators"],
+				SessionID:     sessionID.JSONMarshal(),
 			}
 			v.Render(w, data)
 		default:

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jusongchen/lepus/app"
+	"Lepus/app"
 )
 
 func TestApp(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jusongchen/lepus/app"
+	"Lepus/app"
 )
 
 const version = "0.3"
