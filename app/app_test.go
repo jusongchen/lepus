@@ -42,8 +42,8 @@ func TestApp(t *testing.T) {
 	}{
 		// {tcName: "get/", path: "/", method: "GET", expect: []string{`action="/signup"`}},
 		{tcName: "get/signup", path: "/signup", method: "GET", expect: []string{`action="/selectphoto"`, `method="post"`}},
-		{tcName: "post/selectphoto", path: "/selectphoto", method: "POST", expect: []string{`action="/upload"`, `method="post"`}, urlValue: signupFormVal},
-		{tcName: "uploadPhoto", path: "/upload", method: "POST", expect: []string{`action="/where2"`, `method="post"`}},
+		{tcName: "post/selectphoto", path: "/selectphoto", method: "POST", expect: []string{`action="/upload"`, `method="post"`, `sessionID={"`}, urlValue: signupFormVal},
+		{tcName: "uploadPhoto", path: "/where2", method: "POST", expect: []string{`action="/where2"`, `method="post"`, `sessionID={"`}},
 	}
 	baseURL := "http://localhost" + addr
 	for _, tc := range tt {
@@ -53,7 +53,9 @@ func TestApp(t *testing.T) {
 
 			if tc.tcName == "uploadPhoto" {
 				// handle file upload case
-				extraParams := map[string]string{}
+				extraParams := map[string]string{
+					"sessionID": "{&quot;Name&quot;:&quot;JUS&quot;,&quot;GradYear&quot;:&quot;65&quot;,&quot;SelectedEducators&quot;:[&quot;蔡春耀&quot;,&quot;蔡温榄&quot;,&quot;陈本培&quot;,&quot;陈金治&quot;]}",
+				}
 
 				res, err = postUploadFileRequest(extraParams, "uploadFile", "tests/resources/testPhoto1.jpg", baseURL+tc.path)
 				if err != nil {

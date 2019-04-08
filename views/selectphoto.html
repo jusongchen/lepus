@@ -1,11 +1,11 @@
 {{define "yield"}}
 
-  <form enctype="multipart/form-data" action="/upload" method="post">
+  <form enctype="multipart/form-data" action="/where2" method="post">
     <input name="sessionID" value="{{.SessionID}}">
 
     <div class="form-group">
       <label for="file1">选择要上传的照片或视频</label>
-      <input type="file" name="uploadFile"  id="file1"/>
+      <input type="file" name="uploadFile"  id="file1" autofocus required/>
       <!-- <input type="file" name="uploadFile" class="form-control-file" id="file1"> -->
     </div>
     

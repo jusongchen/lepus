@@ -15,7 +15,7 @@ import (
 
 /*
 	routing path:
-	at home / form post -> /signup form post -> /selectphoto form post -> /upload form post -> where2 form post, branching to:
+	at home / form post -> /signup form post -> /selectphoto form post ->  where2 form post, branching to:
 			1) home /
 			2) /selectphoto
 			3) /sponsor , post -> home /
@@ -37,7 +37,7 @@ func (s *lepus) routes(staticDir string) {
 
 	s.router.Handle("/signup", s.signupHandler())
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
-	s.router.Post("/upload", s.uploadHandler())
+	// s.router.Post("/upload", s.uploadHandler())
 	s.router.Post("/where2", s.where2Handler())
 	s.router.HandleFunc("/about", s.handleAbout())
 	// s.router.HandleFunc("/", s.handleIndex())
@@ -45,7 +45,7 @@ func (s *lepus) routes(staticDir string) {
 }
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(http.StatusBadRequest)
+	w.WriteHeader(statusCode)
 	w.Write([]byte(message))
 }
 
@@ -55,80 +55,81 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func (s *lepus) uploadHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func uploadFile(w http.ResponseWriter, r *http.Request) {
 
-		// validate file size
-		r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			renderError(w, fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize), http.StatusBadRequest)
-			return
-		}
+	// validate file size
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
-		fmt.Printf("upload photo form value:%s\n", r.Form)
+	err := r.ParseMultipartForm(maxUploadSize)
 
-		// parse and validate file and post parameters
-		fileType := r.PostFormValue("type")
-		file, fileHeader, err := r.FormFile("uploadFile")
-		if err != nil {
-			renderError(w, fmt.Sprintf("内部错误: r.FromFile get error:%s", err), http.StatusBadRequest)
-			return
-		}
-		fmt.Printf("fileHeader: Filename %v Size %v", fileHeader.Filename, fileHeader.Size)
+	if err != nil {
+		errMsg := fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
+		renderError(w, errMsg, http.StatusBadRequest)
+		return
+	}
 
-		defer file.Close()
-		fileBytes, err := ioutil.ReadAll(file)
-		if err != nil {
-			renderError(w, "内部错误，无法读取上传文件", http.StatusBadRequest)
-			return
-		}
+	fmt.Printf("upload photo form value:%s\n", r.Form)
 
-		// check file type, detectcontenttype only needs the first 512 bytes
-		filetype := http.DetectContentType(fileBytes)
-		switch filetype {
-		case "image/jpeg", "image/jpg":
-		case "image/gif", "image/png":
-			break
-		default:
-			renderError(w, "不认识的文件格式", http.StatusBadRequest)
-			return
-		}
+	// parse and validate file and post parameters
+	fileType := r.PostFormValue("type")
+	file, fileHeader, err := r.FormFile("uploadFile")
+	if err != nil {
+		renderError(w, fmt.Sprintf("内部错误: r.FromFile get error:%s", err), http.StatusBadRequest)
+		return
+	}
+	fmt.Printf("fileHeader: Filename %v Size %v", fileHeader.Filename, fileHeader.Size)
 
-		fileName := randToken(12)
-		// fileEndings, err := mime.ExtensionsByType(fileType)
-		fileEndings := []string{".jpg"}
+	defer file.Close()
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		renderError(w, "内部错误，无法读取上传文件", http.StatusBadRequest)
+		return
+	}
 
-		if err != nil {
-			renderError(w, "CANT_READ_FILE_TYPE", http.StatusInternalServerError)
-			return
-		}
-		newPath := filepath.Join(s.receiveDir, fileName+fileEndings[0])
-		fmt.Printf("FileType: %s, File: %s\n", fileType, newPath)
+	// check file type, detectcontenttype only needs the first 512 bytes
+	filetype := http.DetectContentType(fileBytes)
+	switch filetype {
+	case "image/jpeg", "image/jpg":
+	case "image/gif", "image/png":
+		break
+	default:
+		renderError(w, "不认识的文件格式", http.StatusBadRequest)
+		return
+	}
 
-		// write file
-		newFile, err := os.Create(newPath)
-		if err != nil {
-			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
-			return
-		}
-		defer newFile.Close() // idempotent, okay to call twice
-		if _, err := newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
-			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
-			return
-		}
-		// boostrap is a template name defined in layout/boostrap.html
-		// v := s.NewView("bootstrap", "where2")
-		s.Render(w, "where2", s.educatorNames)
+	fileName := randToken(12)
+	// fileEndings, err := mime.ExtensionsByType(fileType)
+	fileEndings := []string{".jpg"}
 
-	})
+	if err != nil {
+		renderError(w, "CANT_READ_FILE_TYPE", http.StatusInternalServerError)
+		return
+	}
+	newPath := filepath.Join(s.receiveDir, fileName+fileEndings[0])
+	fmt.Printf("FileType: %s, File: %s\n", fileType, newPath)
+
+	// write file
+	newFile, err := os.Create(newPath)
+	if err != nil {
+		renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
+		return
+	}
+	defer newFile.Close() // idempotent, okay to call twice
+	if _, err := newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
+		renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
+		return
+	}
+
 }
+
+// func (s *lepus) uploadHandler() http.HandlerFunc {
+// 	return http.HandlerFunc()
+// }
 
 func (s *lepus) signupHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
-			// boostrap is a template name defined in layout/boostrap.html
-			// v := NewView("bootstrap", "views/signup.html")
 			s.Render(w, "signup", s.educatorNames)
 
 		default:
@@ -141,9 +142,6 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		// case "GET":
-		// boostrap is a template name defined in layout/boostrap.html
-		// v := NewView("bootstrap", "views/signup.html")
-		// v.Render(w, s.educatorNames)
 		case "POST":
 
 			if err := r.ParseForm(); err != nil {
@@ -151,16 +149,19 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				return
 			}
 
-			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
-			sessionID := getSessionID(w, r)
-			log.Printf("sessionID:%+v", sessionID)
-			// v := NewView("bootstrap", "views/selectphoto.html")
+			// fmt.Println("value get from", r.URL, r.Form) // print information on server side.
+			// sessionID := getSessionID(w, r)
+
+			profile := getParticipantProfile(w, r)
+
+			log.Printf("Participant Profile:%+v", profile)
+
 			data := struct {
 				EducatorNames []string
 				SessionID     string
 			}{
-				EducatorNames: r.Form["educators"],
-				SessionID:     sessionID.JSONMarshal(),
+				EducatorNames: profile.SelectedEducators,
+				SessionID:     profile.JSONMarshal(),
 			}
 			s.Render(w, "selectphoto", data)
 		default:
@@ -171,30 +172,28 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 func (s *lepus) where2Handler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		switch r.Method {
 		// case "GET":
-		// boostrap is a template name defined in layout/boostrap.html
-		// v := NewView("bootstrap", "views/signup.html")
-		// v.Render(w, s.educatorNames)
 		case "POST":
 
-			if err := r.ParseForm(); err != nil {
-				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
+			uploadFile(w, r)
+
+			sessionID := ""
+			sids := r.Form["sessionID"]
+			if sids == nil {
+				errMsg := fmt.Sprintf("sessionID missing, URL:%v", r.URL)
+				log.Fatalf(errMsg)
+				renderError(w, errMsg, http.StatusInternalServerError)
 				return
 			}
+			sessionID = r.Form["sessionID"][0]
 
-			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
-			sessionID := getSessionID(w, r)
-			log.Printf("sessionID:%+v", sessionID)
-			// v := NewView("bootstrap", "views/selectphoto.html")
-			data := struct {
-				EducatorNames []string
-				SessionID     string
-			}{
-				EducatorNames: r.Form["educators"],
-				SessionID:     sessionID.JSONMarshal(),
-			}
-			s.Render(w, "it_Depends", data)
+			// fmt.Println("value get from ", r.URL, r.Form) // print information on server side.
+
+			log.Printf("sessionID at %s:%+v", r.URL, sessionID)
+
+			s.Render(w, "where2", struct{ SessionID string }{SessionID: sessionID})
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}

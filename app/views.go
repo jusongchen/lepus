@@ -17,7 +17,7 @@ var initViewFilenames = map[string]string{
 	"where2":      "where2.html",
 }
 
-//NewView creates new templates by parsing go html template files
+//initTemplates initialize  new templates by parsing go html template files
 func (s *lepus) initTemplates(viewPath string) error {
 	layoutFilePath := filepath.Join(viewPath, "layout/*.html")
 
