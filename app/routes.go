@@ -148,20 +148,21 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
 				return
 			}
+			sessionID := s.getSessionID(w, r)
 
-			// fmt.Println("value get from", r.URL, r.Form) // print information on server side.
-			// sessionID := getSessionID(w, r)
+			profile, err := getParticipantProfile(sessionID)
+			if err != nil {
+				return
+			}
 
-			profile := getParticipantProfile(w, r)
-
-			log.Printf("Participant Profile:%+v", profile)
+			log.Printf("Participant Profile at %v:%+v", r.URL, profile)
 
 			data := struct {
 				EducatorNames []string
 				SessionID     string
 			}{
 				EducatorNames: profile.SelectedEducators,
-				SessionID:     profile.JSONMarshal(),
+				SessionID:     sessionID,
 			}
 			s.Render(w, "selectphoto", data)
 		default:
@@ -178,20 +179,7 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 		case "POST":
 
 			uploadFile(w, r)
-
-			sessionID := ""
-			sids := r.Form["sessionID"]
-			if sids == nil {
-				errMsg := fmt.Sprintf("sessionID missing, URL:%v", r.URL)
-				log.Fatalf(errMsg)
-				renderError(w, errMsg, http.StatusInternalServerError)
-				return
-			}
-			sessionID = r.Form["sessionID"][0]
-
-			// fmt.Println("value get from ", r.URL, r.Form) // print information on server side.
-
-			log.Printf("sessionID at %s:%+v", r.URL, sessionID)
+			sessionID := s.getSessionID(w, r)
 
 			s.Render(w, "where2", struct{ SessionID string }{SessionID: sessionID})
 		default:
