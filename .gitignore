@@ -1,7 +1,8 @@
-photos/*
+received/*
 tmp/*
 
 Lepus
 .DS_Store
 lepus.exe
 
+debug

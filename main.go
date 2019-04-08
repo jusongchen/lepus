@@ -3,33 +3,18 @@
 package main
 
 import (
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/go-chi/chi"
+	"github.com/jusongchen/lepus/app"
 )
 
-const version = "0.2"
-const maxUploadSize = 20 * 1024 * 1024 // 20 mb
+const version = "0.3"
 const defaultPort = "8080"
-const dirForPhotos = "photos"
+const receiveDir = "./received"
 const dirForStatic = "./public"
-const registrationHTMLFilename = "registration.html"
-
-func renderError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(http.StatusBadRequest)
-	w.Write([]byte(message))
-}
-
-func randToken(len int) string {
-	b := make([]byte, len)
-	rand.Read(b)
-	return fmt.Sprintf("%x", b)
-}
 
 func main() {
 	fmt.Printf("Lepus version:%s", version)
@@ -53,25 +38,16 @@ func main() {
 	// }
 
 	// create the director for uploaded files
-	path := dirForPhotos
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err1 := os.Mkdir(path, 0700)
+	if _, err := os.Stat(receiveDir); os.IsNotExist(err) {
+		err1 := os.Mkdir(receiveDir, 0700)
 		if err1 != nil {
-			log.Fatalf("Create dir '%s' failed:%s", path, err1)
+			log.Fatalf("Create dir '%s' failed:%s", receiveDir, err1)
 		}
 	}
+	const viewPath = "views/"
 
-	r := chi.NewRouter()
+	educatorNames := []string{"蔡春耀", "蔡温榄", "蔡小华", "曹世才", "曾敏毅", "沈淑耀", "陈本培", "陈福音", "陈济兴", "陈金治", "陈群青", "陈细英", "陈燕华", "陈由溪", "陈玉珍", "陈长青", "陈志章", "陈宗辉", "傅德卿", "官尚武", "何天祥", "洪大锋", "胡永模", "胡永岳", "江英岩", "蒋永潮", "李粹玉", "练锡康", "林秉松", "林端川", "林芳", "林嘉坚", "林茂英", "林培坚", "林岫英", "林月心", "林占樟", "林昭英", "刘开天", "刘世煌", "刘永宾", "陆佩珰", "罗朝东", "毛玉珍", "毛祖辉", "毛祖瑜", "欧阳兴", "潘宝升", "潘家健", "潘世英", "潘孝平", "钱振恒", "石柏仁", "童美霞", "王福庆", "王光琳", "王丽华", "王美珠", "王其本", "王强", "王如", "王玉芳", "危金炎", "魏友义", "吴大樑", "吴齐练", "吴生基", "肖方尤", "肖光磊", "肖忠波", "许美钗", "严秀凤", "杨诚", "杨虹", "杨孝华", "杨义森", "叶菁", "余春华", "余冬生", "余世棣", "余天雨", "余伟然", "詹玉赐", "张殿", "张桂贞", "张家新", "张孔烺", "张荣治", "张世年", "张芝萱", "赵文婷", "郑春高", "郑国钦", "郑玉珠", "郑宗振", "周治河", "庄可明", "庄瑞发"}
 
-	registerStaticWeb(r, dirForStatic)
+	app.Start(fmt.Sprintf(":%d", *portInt), dirForStatic, version, receiveDir, educatorNames, viewPath)
 
-	// r.Get("/", http.FileServer(http.Dir(dirForStatic)).ServeHTTP)
-
-	r.Post("/upload", uploadFileHandler())
-	r.Get("/register", mainHandler())
-	r.Post("/register", registerHandler())
-
-	port := fmt.Sprintf(":%d", *portInt)
-	log.Printf("Server Lepus(v%s) started on port %s", version, port)
-	log.Fatal(http.ListenAndServe(port, r))
 }

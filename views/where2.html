@@ -1,0 +1,30 @@
+{{define "yield"}}
+
+  <form action="/selectphoto" method="post">
+    <input name="sessionID" value="{{.SessionID}}">
+    
+    <input name="next-action" class="col" type="submit" value="上传下一张照片">
+    
+    
+  </form>
+  
+  <form action="/sponsor" method="post">
+  </div>
+  
+  <input name="sessionID" value="{{.SessionID}}">
+    <div class="form-group">
+      <input name="next-action" class="col" type="submit" value="赞助本次活动">
+    </div>
+
+  
+  </form>
+
+  <form action="/" method="get">
+
+    
+    <div class="form-group">
+        <input name="next-action" class="col" type="submit" value="回活动首页">
+      </div>
+  
+  </form>
+{{end}}      
