@@ -1,4 +1,4 @@
-module Lepus
+module github.com/jusongchen/lepus
 
 go 1.12
 

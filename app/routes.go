@@ -116,16 +116,10 @@ func (s *lepus) uploadHandler() http.HandlerFunc {
 			renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
 			return
 		}
+		// boostrap is a template name defined in layout/boostrap.html
+		// v := s.NewView("bootstrap", "where2")
+		s.Render(w, "where2", s.educatorNames)
 
-		// w.Write([]byte("SUCCESS"))
-
-		// sessionID := string(r.Form["sessionID"][0])
-		// log.Printf("sessionID in upload:%+v", sessionID)
-		// v := NewView("bootstrap", "views/uploadnext.html")
-		// v.Render(w, sessionID)
-		// TODO here : Jusong Pass session to context
-
-		// http.Redirect(w, r, "/uploadnext", http.StatusSeeOther)
 	})
 }
 
@@ -134,8 +128,8 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			// boostrap is a template name defined in layout/boostrap.html
-			v := NewView("bootstrap", "views/signup.html")
-			v.Render(w, s.educatorNames)
+			// v := NewView("bootstrap", "views/signup.html")
+			s.Render(w, "signup", s.educatorNames)
 
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
@@ -160,7 +154,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
 			sessionID := getSessionID(w, r)
 			log.Printf("sessionID:%+v", sessionID)
-			v := NewView("bootstrap", "views/selectphoto.html")
+			// v := NewView("bootstrap", "views/selectphoto.html")
 			data := struct {
 				EducatorNames []string
 				SessionID     string
@@ -168,7 +162,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				EducatorNames: r.Form["educators"],
 				SessionID:     sessionID.JSONMarshal(),
 			}
-			v.Render(w, data)
+			s.Render(w, "selectphoto", data)
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}
@@ -192,7 +186,7 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 			fmt.Println("value get from", r.URL, r.Form) // print information on server side.
 			sessionID := getSessionID(w, r)
 			log.Printf("sessionID:%+v", sessionID)
-			v := NewView("bootstrap", "views/selectphoto.html")
+			// v := NewView("bootstrap", "views/selectphoto.html")
 			data := struct {
 				EducatorNames []string
 				SessionID     string
@@ -200,7 +194,7 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 				EducatorNames: r.Form["educators"],
 				SessionID:     sessionID.JSONMarshal(),
 			}
-			v.Render(w, data)
+			s.Render(w, "it_Depends", data)
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}
