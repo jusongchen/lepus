@@ -1,29 +1,38 @@
 {{define "yield"}}
+<div class="container-fluid">
 
-  <form action="/selectphoto" method="post">
-    <input name="sessionID" value="{{.SessionID}}">
+  <div class="row"> &nbsp; </div>
+  <div class="row"> &nbsp; </div>
+
+  <form id="form1"action="/selectphoto" method="post">
+    <input name="sessionID" type="hidden" value="{{.SessionID}}">
     
-    <input  class="col" type="submit" value="上传下一张照片">
-    
-    
-  </form>
-  
-  <form action="/sponsor" method="post">
-  </div>
-  
-  <input name="sessionID" value="{{.SessionID}}">
-    <div class="form-group">
-      <input  class="col" type="submit" value="赞助本次活动">
+    <!-- <input  class="col" type="submit" value="上传下一张照片"> -->
+    <div class="text-center"> 
+      <button type="submit" form="form1" value="Submit" class="btn btn-outline-primary btn-lg" >上传下一张照片</button>
     </div>
-
-  
   </form>
-
-  <form action="/" method="get">
+  <div class="row"> &nbsp; </div>
+  <div class="row"> &nbsp; </div>
+  
+  <form id="form2" action="/sponsor" method="post">
     
-    <div class="form-group">
-        <input  class="col" type="submit" value="回活动首页">
-      </div>
-  
+    <input name="sessionID" type="hidden" value="{{.SessionID}}">
+    <div class="text-center"> 
+      <button type="submit" form="form2" value="Submit" class="btn btn-outline-primary btn-lg" >赞助本次活动</button>
+    </div>
   </form>
-{{end}}      
+
+  <div class="row"> &nbsp; </div>
+  <div class="row"> &nbsp; </div>
+
+  <form id="gotoHomePage" action="/" method="get">
+    
+    <div class="text-center"> 
+        <!-- <input  class="col" type="submit" value=""> -->
+        <button type="submit" form="gotoHomePage" value="Submit" class="btn btn-outline-primary btn-lg" >回活动首页</button>
+    </div>
+    
+  </form>
+</div>
+  {{end}}      
