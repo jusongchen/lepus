@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi"
+	"github.com/jusongchen/lepus/chn"
 )
 
 const maxUploadSize = 20 * 1024 * 1024 // 20 mb
@@ -33,6 +36,17 @@ var s lepus
 
 //Start starts Lepus server
 func Start(addr string, staticHomeDir string, srvVersion string, receiveDir string, educatorNames []string, viewPath string) {
+
+	// insert an whitespace if educatorNames is less than 2 charactor long
+
+	for i, name := range educatorNames {
+		if utf8.RuneCountInString(name) == 2 {
+			educatorNames[i] = string([]rune(name)[0]) + "　" + string([]rune(name)[1])
+		}
+	}
+	// sort educatorNames
+
+	sort.Sort(chn.ByPinyin(educatorNames))
 
 	s = lepus{
 		router:        chi.NewRouter(),
