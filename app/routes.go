@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/disintegration/imaging"
 	"github.com/go-chi/chi/middleware"
 	"github.com/h2non/filetype"
 	"github.com/sirupsen/logrus"
@@ -57,7 +58,28 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func uploadFile(w http.ResponseWriter, r *http.Request) error {
+func resizeImage(srcFile, dstFile string) error {
+
+	srcImage, err := imaging.Open(srcFile)
+
+	if err != nil {
+		logrus.WithError(err).Error("resizeImage():open image failed")
+		return err
+	}
+
+	dstImage128 := imaging.Resize(srcImage, 128, 128, imaging.Lanczos)
+
+	err = imaging.Save(dstImage128, dstFile)
+	if err != nil {
+		logrus.WithError(err).Error("resizeImage():save image failed")
+		return err
+	}
+	return nil
+
+}
+
+//uploadFile returns resized image file and error
+func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
 
 	var err error
 	// validate file size
@@ -66,9 +88,9 @@ func uploadFile(w http.ResponseWriter, r *http.Request) error {
 	err = r.ParseMultipartForm(maxUploadSize)
 
 	if err != nil {
-		errMsg := fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
-		renderError(w, errMsg, http.StatusBadRequest)
-		return err
+
+		// renderError(w, errMsg, http.StatusBadRequest)
+		return "", fmt.Errorf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
 	}
 
 	fmt.Printf("upload photo form value:%s\n", r.Form)
@@ -78,68 +100,51 @@ func uploadFile(w http.ResponseWriter, r *http.Request) error {
 
 	file, fileHeader, err := r.FormFile("uploadFile")
 	if err != nil {
-		renderError(w, fmt.Sprintf("内部错误: r.FromFile get error:%s", err), http.StatusBadRequest)
-		return err
+		return "", fmt.Errorf("内部错误: r.FromFile get error:%s", err)
 	}
-	fmt.Printf("fileHeader: Filename %v Size %v", fileHeader.Filename, fileHeader.Size)
 
 	defer file.Close()
 	fileBytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		renderError(w, "内部错误，无法读取上传文件", http.StatusBadRequest)
-		return err
+		return "", fmt.Errorf("内部错误，无法读取上传文件:%v", err)
 	}
 
-	// check file type, detectcontenttype only needs the first 512 bytes
-	// filetyp := http.DetectContentType(fileBytes)
-	// fileTypeExtensions := map[string]string{
-	// 	"image/jpeg":      ".jpeg",
-	// 	"image/jpg":       ".jpg",
-	// 	"image/gif":       ".gif",
-	// 	"image/png":       ".png",
-	// 	"video/x-flv":     ".flv",
-	// 	"video/mp4":       ".mp4",
-	// 	"video/3gpp":      ".3gpp",
-	// 	"video/quicktime": ".mov",
-	// 	"video/x-msvideo": ".avi",
-	// 	"video/x-ms-wmv":  ".wmv",
-	// }
+	fileExtensions := []string{"jpg", "png", "gif", "webp", "cr2", "tif", "bmp", "heif", "jxr", "psd", "ico", "mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "mpg", "flv"}
 
-	fileExtensions := []string{".jpeg", ".jpg", ".gif", ".png", ".flv", ".mp4", ".3gpp", ".mov", ".avi", ".wmv"}
-
-	if !filetype.IsImage(fileBytes) && !filetype.IsVideo(fileBytes) && !!filetype.IsAudio(fileBytes) {
-		err = fmt.Errorf("无法识别上传文件的格式,目前支持的文件格式:\n%v\n请将相片或视频转换成支持的格式再上传", strings.Join(fileExtensions, " "))
-		renderError(w, err.Error(), http.StatusUnsupportedMediaType)
-		logrus.WithError(err).Errorf("unknown media type, uloaded filename:%s", fileHeader.Filename)
-		return err
+	if !(filetype.IsImage(fileBytes) || filetype.IsVideo(fileBytes) || filetype.IsAudio(fileBytes)) {
+		return "", fmt.Errorf("无法识别上传文件的格式,目前支持的文件格式:\n%v\n请将相片或视频转换成支持的格式再上传", strings.Join(fileExtensions, " "))
 	}
 
 	kind, _ := filetype.Match(fileBytes)
 	if kind == filetype.Unknown {
-		err = fmt.Errorf("filetype.Match: cannot file a matched file type")
-		logrus.WithError(err).Errorf("unknown media type, uloaded filename:%s", fileHeader.Filename)
-		return err
+		return "", fmt.Errorf("无法识别上传文件的格式")
 	}
 
-	fileName := randToken(12)
+	fileName := randToken(12) + "." + kind.Extension
 
-	newPath := filepath.Join(s.receiveDir, fileName+"."+kind.Extension)
+	newPath := filepath.Join(s.receiveDir, fileName)
 
 	// write file
 	newFile, err := os.Create(newPath)
 	if err != nil {
-		renderError(w, fmt.Sprintf("create file failed:%v", err), http.StatusInternalServerError)
-		logrus.WithError(err).Error("create file failed")
-		return err
+		return "", fmt.Errorf("内部错误:create file failed:%v", err)
 	}
 	defer newFile.Close() // idempotent, okay to call twice
-	if _, err := newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
-		renderError(w, "Write file failed", http.StatusInternalServerError)
-		logrus.WithError(err).Error("Write file failed")
-		return err
+	if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
+		return "", fmt.Errorf("内部错误:Write file failed:%v", err)
 	}
 	logrus.WithFields(logrus.Fields{"origin filename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
-	return nil
+
+	imagePathRelative := filepath.Join(s.imageDir, fileName)
+
+	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, imagePathRelative)); err != nil {
+		// just log error, we may get an error during resize the picture as we do not handle all formats
+		logrus.WithError(err).WithField("filename", newPath).Error("resize image failed")
+		//do not return error here
+		return "", nil
+	}
+
+	return imagePathRelative, nil
 }
 
 // func (s *lepus) uploadHandler() http.HandlerFunc {
@@ -193,19 +198,39 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 func (s *lepus) where2Handler() http.HandlerFunc {
 
+	type ctrlDataTyp struct {
+		SessionID     string
+		InfoText      string
+		InfoType      string
+		ImageFile     string
+		ShowImageFile bool
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
 		// case "GET":
 		case "POST":
 
-			if err := uploadFile(w, r); err != nil {
-				logrus.WithError(err).Errorf("Upload file failed.")
-				return
+			imageFile, err := uploadFile(w, r)
+			if err != nil {
+				logrus.WithError(err).Errorf("uploadFile failed")
 			}
-			sessionID := s.getSessionID(w, r)
 
-			s.Render(w, "where2", struct{ SessionID string }{SessionID: sessionID})
+			sessionID := s.getSessionID(w, r)
+			data := ctrlDataTyp{SessionID: sessionID,
+				InfoText:      "上传成功",
+				InfoType:      "success",
+				ImageFile:     imageFile,
+				ShowImageFile: imageFile != "",
+			}
+
+			if err != nil {
+				data.InfoText = err.Error()
+				data.InfoType = "danger"
+			}
+			logrus.Infof("rendering where2 with data %v", data)
+
+			s.Render(w, "where2", data)
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}

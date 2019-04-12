@@ -2,7 +2,18 @@
 <div class="container-fluid">
 
   <div class="row"> &nbsp; </div>
-  <div class="row"> &nbsp; </div>
+  <div class="text-center alert alert-{{.InfoType}} alert-dismissible fade show" id="notification" role="alert" >
+      {{.InfoText}}
+    </div>
+
+    <div class="row"> &nbsp; </div>
+    {{if .ShowImageFile}}
+
+    <div class="text-center"> 
+      <img src="{{.ImageFile}}" class="img-fluid" alt="Responsive image">
+    </div>
+    <div class="row"> &nbsp; </div>
+    {{end}}
 
   <form id="form1"action="/selectphoto" method="post">
     <input name="sessionID" type="hidden" value="{{.SessionID}}">
@@ -25,13 +36,15 @@
 
   <div class="row"> &nbsp; </div>
   <div class="row"> &nbsp; </div>
-
+  
   <form id="gotoHomePage" action="/" method="get">
     
     <div class="text-center"> 
-        <!-- <input  class="col" type="submit" value=""> -->
-        <button type="submit" form="gotoHomePage" value="Submit" class="btn btn-outline-primary btn-lg" >回活动首页</button>
+      <!-- <input  class="col" type="submit" value=""> -->
+      <button type="submit" form="gotoHomePage" value="Submit" class="btn btn-outline-primary btn-lg" >回活动首页</button>
     </div>
+    <div class="row"> &nbsp; </div>
+    <div class="row"> &nbsp; </div>
     
   </form>
 </div>

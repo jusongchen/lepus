@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"syscall"
 	"unicode/utf8"
@@ -25,6 +26,8 @@ type lepus struct {
 	addr          string
 	version       string
 	receiveDir    string
+	staticHomeDir string
+	imageDir      string
 	educatorNames []string
 	viewPath      string
 	//tempMap key-> urlPath , such as signUp
@@ -35,7 +38,7 @@ type lepus struct {
 var s lepus
 
 //Start starts Lepus server
-func Start(addr string, staticHomeDir string, srvVersion string, receiveDir string, educatorNames []string, viewPath string) {
+func Start(addr, staticHomeDir, srvVersion, receiveDir, imageDir, viewPath string, educatorNames []string) {
 
 	// insert an whitespace if educatorNames is less than 2 charactor long
 
@@ -53,8 +56,19 @@ func Start(addr string, staticHomeDir string, srvVersion string, receiveDir stri
 		addr:          addr,
 		version:       srvVersion,
 		receiveDir:    receiveDir,
+		staticHomeDir: staticHomeDir,
+		imageDir:      imageDir,
 		educatorNames: educatorNames,
 		viewPath:      viewPath,
+	}
+
+	for _, dir := range []string{filepath.Join(s.staticHomeDir, s.imageDir), s.receiveDir} {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			err1 := os.Mkdir(dir, 0700)
+			if err1 != nil {
+				log.Fatalf("Create dir '%s' failed:%s", dir, err1)
+			}
+		}
 	}
 	s.initTemplates(viewPath)
 	s.routes(staticHomeDir)

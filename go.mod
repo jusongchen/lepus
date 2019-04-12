@@ -3,6 +3,7 @@ module github.com/jusongchen/lepus
 go 1.12
 
 require (
+	github.com/disintegration/imaging v1.6.0
 	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/h2non/filetype v1.0.8
 	github.com/sirupsen/logrus v1.4.1
