@@ -2,66 +2,64 @@ package app
 
 import (
 	"html/template"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 type tempMap map[string]*template.Template
 
-var initViewFilenames = map[string]string{
-
-	"selectphoto": "selectphoto.html",
-	"signup":      "signup.html",
-	"where2":      "where2.html",
-}
-
 //initTemplates initialize  new templates by parsing go html template files
 func (s *lepus) initTemplates(viewPath string) error {
 	layoutFilePath := filepath.Join(viewPath, "layout/*.html")
+	viewFilePath := filepath.Join(viewPath, "*.html")
 
-	viewFiles := map[string]string{}
-
-	for k, v := range initViewFilenames {
-		viewFiles[k] = filepath.Join(viewPath, v)
+	viewFiles, err := filepath.Glob(viewFilePath)
+	if err != nil {
+		logrus.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
 	}
 
 	//get all layout files
 	layoutFiles, err := filepath.Glob(layoutFilePath)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
 	}
 
 	if layoutFiles == nil {
-		log.Fatalf("Glob search did not find any layout file:%s", layoutFilePath)
+		logrus.Fatalf("Glob search did not find any layout file:%s", layoutFilePath)
 	}
 
 	s.tempMap = map[string]*template.Template{}
 
-	for k, v := range viewFiles {
+	for _, viewFile := range viewFiles {
 		//verify template exiits
-		_, err := os.Stat(v)
+		_, err := os.Stat(viewFile)
 		if os.IsNotExist(err) {
-			log.Fatalf("html template file dose not exist : %s", v)
+			logrus.Fatalf("html template file dose not exist : %s", viewFile)
 
 		} else if err != nil {
-			log.Fatalf("os error while check template file i %s:\n%v", v, err)
+			logrus.Fatalf("os error while check template file i %s:\n%v", viewFile, err)
 		}
 
 		// file exists
-		files := append([]string{v}, layoutFiles...)
+		files := append([]string{viewFile}, layoutFiles...)
+
 		t, err := template.ParseFiles(files...)
 
 		if t == nil {
-			log.Fatalf("Did not find any template file matches:%s", layoutFilePath)
+			logrus.Fatalf("Did not find any template file matches:%s", files)
 		}
 		if err != nil {
-			panic(err)
+			logrus.Fatalf("parse template failed:%s", files)
 		}
-		s.tempMap[k] = t
-	}
 
+		_, filename := filepath.Split(viewFile)
+		s.tempMap[strings.TrimSuffix(filename, filepath.Ext(filename))] = t
+	}
+	logrus.Info("Template init completed.")
 	return nil
 }
 
@@ -69,7 +67,7 @@ func (s *lepus) initTemplates(viewPath string) error {
 func (s *lepus) Render(w http.ResponseWriter, urlPath string, data interface{}) error {
 	t := s.tempMap[urlPath]
 	if t == nil {
-		log.Fatalf("cannot find template for url %s", urlPath)
+		logrus.Fatalf("cannot find template for url %s", urlPath)
 	}
 	return t.ExecuteTemplate(w, "bootstrap", data)
 	// return nil

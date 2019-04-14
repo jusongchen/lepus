@@ -1,6 +1,6 @@
-received/*
-tmp/*
-
+received/
+tmp/
+public/images/
 Lepus
 .DS_Store
 lepus.exe

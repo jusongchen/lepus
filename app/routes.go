@@ -4,21 +4,28 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/disintegration/imaging"
 	"github.com/go-chi/chi/middleware"
+	"github.com/h2non/filetype"
 	"github.com/sirupsen/logrus"
 )
 
 /*
 	routing path:
-	at home / form post -> /signup form post -> /selectphoto form post ->  where2 form post, branching to:
-			1) home /
-			2) /selectphoto
-			3) /sponsor , post -> home /
+	at home /
+		post -> /signup
+			post -> /selectphoto
+				post ->  where2
+					post 1) home
+						 2) /selectphoto
+						 3) /sponsor ,
+							post -> /home
+							post -> /selectphoto
 */
 func (s *lepus) routes(staticDir string) {
 
@@ -39,8 +46,11 @@ func (s *lepus) routes(staticDir string) {
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
 	// s.router.Post("/upload", s.uploadHandler())
 	s.router.Post("/where2", s.where2Handler())
+	s.router.Post("/sponsor", s.sponsorHandler())
 	s.router.HandleFunc("/about", s.handleAbout())
-	// s.router.HandleFunc("/", s.handleIndex())
+	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		renderError(w, fmt.Sprintf("path not found:%s", r.URL), http.StatusNotFound)
+	})
 
 }
 
@@ -55,71 +65,93 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func uploadFile(w http.ResponseWriter, r *http.Request) {
+func resizeImage(srcFile, dstFile string) error {
 
+	srcImage, err := imaging.Open(srcFile)
+
+	if err != nil {
+		logrus.WithError(err).Error("resizeImage():open image failed")
+		return err
+	}
+
+	dstImage128 := imaging.Resize(srcImage, 128, 128, imaging.Lanczos)
+
+	err = imaging.Save(dstImage128, dstFile)
+	if err != nil {
+		logrus.WithError(err).Error("resizeImage():save image failed")
+		return err
+	}
+	return nil
+
+}
+
+//uploadFile returns resized image file and error
+func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
+
+	var err error
 	// validate file size
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
-	err := r.ParseMultipartForm(maxUploadSize)
+	err = r.ParseMultipartForm(maxUploadSize)
 
 	if err != nil {
-		errMsg := fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
-		renderError(w, errMsg, http.StatusBadRequest)
-		return
+
+		// renderError(w, errMsg, http.StatusBadRequest)
+		return "", fmt.Errorf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
 	}
 
 	fmt.Printf("upload photo form value:%s\n", r.Form)
 
 	// parse and validate file and post parameters
-	fileType := r.PostFormValue("type")
+	// fileType := r.PostFormValue("type")
+
 	file, fileHeader, err := r.FormFile("uploadFile")
 	if err != nil {
-		renderError(w, fmt.Sprintf("内部错误: r.FromFile get error:%s", err), http.StatusBadRequest)
-		return
+		return "", fmt.Errorf("内部错误: r.FromFile get error:%s", err)
 	}
-	fmt.Printf("fileHeader: Filename %v Size %v", fileHeader.Filename, fileHeader.Size)
 
 	defer file.Close()
 	fileBytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		renderError(w, "内部错误，无法读取上传文件", http.StatusBadRequest)
-		return
+		return "", fmt.Errorf("内部错误，无法读取上传文件:%v", err)
 	}
 
-	// check file type, detectcontenttype only needs the first 512 bytes
-	filetype := http.DetectContentType(fileBytes)
-	switch filetype {
-	case "image/jpeg", "image/jpg":
-	case "image/gif", "image/png":
-		break
-	default:
-		renderError(w, "不认识的文件格式", http.StatusBadRequest)
-		return
+	fileExtensions := []string{"jpg", "png", "gif", "webp", "cr2", "tif", "bmp", "heif", "jxr", "psd", "ico", "mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "mpg", "flv"}
+
+	if !(filetype.IsImage(fileBytes) || filetype.IsVideo(fileBytes) || filetype.IsAudio(fileBytes)) {
+		return "", fmt.Errorf("无法识别上传文件的格式,目前支持的文件格式:\n%v\n请将相片或视频转换成支持的格式再上传", strings.Join(fileExtensions, " "))
 	}
 
-	fileName := randToken(12)
-	// fileEndings, err := mime.ExtensionsByType(fileType)
-	fileEndings := []string{".jpg"}
-
-	if err != nil {
-		renderError(w, "CANT_READ_FILE_TYPE", http.StatusInternalServerError)
-		return
+	kind, _ := filetype.Match(fileBytes)
+	if kind == filetype.Unknown {
+		return "", fmt.Errorf("无法识别上传文件的格式")
 	}
-	newPath := filepath.Join(s.receiveDir, fileName+fileEndings[0])
-	fmt.Printf("FileType: %s, File: %s\n", fileType, newPath)
+
+	fileName := randToken(12) + "." + kind.Extension
+
+	newPath := filepath.Join(s.receiveDir, fileName)
 
 	// write file
 	newFile, err := os.Create(newPath)
 	if err != nil {
-		renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
-		return
+		return "", fmt.Errorf("内部错误:create file failed:%v", err)
 	}
 	defer newFile.Close() // idempotent, okay to call twice
-	if _, err := newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
-		renderError(w, "CANT_WRITE_FILE", http.StatusInternalServerError)
-		return
+	if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
+		return "", fmt.Errorf("内部错误:Write file failed:%v", err)
+	}
+	logrus.WithFields(logrus.Fields{"originFilename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
+
+	imagePathRelative := filepath.Join(s.imageDir, fileName)
+
+	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, imagePathRelative)); err != nil {
+		// just log error, we may get an error during resize the picture as we do not handle all formats
+		logrus.WithError(err).WithField("filename", newPath).Error("resize image failed")
+		//do not return error here
+		return "", nil
 	}
 
+	return imagePathRelative, nil
 }
 
 // func (s *lepus) uploadHandler() http.HandlerFunc {
@@ -148,20 +180,21 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
 				return
 			}
+			sessionID := s.getSessionID(w, r)
 
-			// fmt.Println("value get from", r.URL, r.Form) // print information on server side.
-			// sessionID := getSessionID(w, r)
+			profile, err := getParticipantProfile(sessionID)
+			if err != nil {
+				return
+			}
 
-			profile := getParticipantProfile(w, r)
-
-			log.Printf("Participant Profile:%+v", profile)
+			logrus.Printf("Participant Profile at %v:%+v", r.URL, profile)
 
 			data := struct {
 				EducatorNames []string
 				SessionID     string
 			}{
 				EducatorNames: profile.SelectedEducators,
-				SessionID:     profile.JSONMarshal(),
+				SessionID:     sessionID,
 			}
 			s.Render(w, "selectphoto", data)
 		default:
@@ -171,29 +204,54 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 }
 
 func (s *lepus) where2Handler() http.HandlerFunc {
+
+	type ctrlDataTyp struct {
+		SessionID     string
+		InfoText      string
+		InfoType      string
+		ImageFile     string
+		ShowImageFile bool
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
 		// case "GET":
 		case "POST":
 
-			uploadFile(w, r)
-
-			sessionID := ""
-			sids := r.Form["sessionID"]
-			if sids == nil {
-				errMsg := fmt.Sprintf("sessionID missing, URL:%v", r.URL)
-				log.Fatalf(errMsg)
-				renderError(w, errMsg, http.StatusInternalServerError)
-				return
+			imageFile, err := uploadFile(w, r)
+			if err != nil {
+				logrus.WithError(err).Errorf("uploadFile failed")
 			}
-			sessionID = r.Form["sessionID"][0]
 
-			// fmt.Println("value get from ", r.URL, r.Form) // print information on server side.
+			sessionID := s.getSessionID(w, r)
+			data := ctrlDataTyp{SessionID: sessionID,
+				InfoText:      "上传成功",
+				InfoType:      "success",
+				ImageFile:     imageFile,
+				ShowImageFile: imageFile != "",
+			}
 
-			log.Printf("sessionID at %s:%+v", r.URL, sessionID)
+			if err != nil {
+				data.InfoText = err.Error()
+				data.InfoType = "danger"
+			}
+			logrus.Infof("rendering where2 with data %v", data)
 
-			s.Render(w, "where2", struct{ SessionID string }{SessionID: sessionID})
+			s.Render(w, "where2", data)
+		default:
+			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+		}
+	})
+}
+
+func (s *lepus) sponsorHandler() http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		switch r.Method {
+		// case "GET":
+		case "POST":
+			s.Render(w, "sponsor", struct{}{})
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
 		}
@@ -205,9 +263,3 @@ func (s *lepus) handleAbout() http.HandlerFunc {
 		fmt.Fprintf(w, "Lepus version:%s", s.version)
 	})
 }
-
-// func (s *LepusServer) handleIndex() http.HandlerFunc {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-// 	})
-// }
