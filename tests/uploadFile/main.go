@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Creates a new file upload http request with optional extra params
@@ -51,17 +52,17 @@ func main() {
 
 	request, err := newfileUploadRequest("http://localhost:8080/upload", extraParams, "uploadFile", "./resources/testPhoto1.jpg")
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	} else {
 		body := &bytes.Buffer{}
 		_, err := body.ReadFrom(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		resp.Body.Close()
 		fmt.Println(resp.StatusCode)

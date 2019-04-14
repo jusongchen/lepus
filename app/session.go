@@ -3,8 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
 
 type participantProfileTyp struct {
@@ -18,7 +19,7 @@ func getParticipantProfile(sessionID string) (participantProfileTyp, error) {
 	profile := participantProfileTyp{}
 	err := json.Unmarshal([]byte(sessionID), &profile)
 	if err != nil {
-		log.Fatalf(`Failed to unmarshal to participantProfile:
+		logrus.Fatalf(`Failed to unmarshal to participantProfile:
 			input:%s
 			Struct:%+v
 			err:%v`, sessionID, profile, err)
@@ -33,7 +34,7 @@ func (s *lepus) getSessionID(w http.ResponseWriter, r *http.Request) (sessionID 
 	//		2) form post from /signup. in this case , the sessionID string is not set, but name,gradYear,educators are set
 
 	defer func() {
-		log.Printf("sessionID at %s:%+v", r.URL, sessionID)
+		logrus.Printf("sessionID at %s:%+v", r.URL, sessionID)
 	}()
 
 	sID := r.Form["sessionID"]
@@ -51,7 +52,7 @@ func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) str
 	if r.Form["name"] == nil || r.Form["gradYear"] == nil {
 		errMsg := fmt.Sprintf("sessionID missing,  and missing input name or gradYear, URL:%v", r.URL)
 		renderError(w, errMsg, http.StatusInternalServerError)
-		log.Fatalf(errMsg)
+		logrus.Fatalf(errMsg)
 		return ""
 	}
 
@@ -65,7 +66,7 @@ func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) str
 	if err != nil {
 		errMsg := fmt.Sprintf("json Marshall %v failed:%v", profile, err)
 		renderError(w, errMsg, http.StatusInternalServerError)
-		log.Fatalf(errMsg)
+		logrus.Fatalf(errMsg)
 		return ""
 	}
 

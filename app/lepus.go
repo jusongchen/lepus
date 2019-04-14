@@ -5,7 +5,6 @@ package app
 import (
 	"context"
 	"html/template"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jusongchen/lepus/chn"
+	"github.com/sirupsen/logrus"
 )
 
 const maxUploadSize = 20 * 1024 * 1024 // 20 mb
@@ -66,7 +66,7 @@ func Start(addr, staticHomeDir, srvVersion, receiveDir, imageDir, viewPath strin
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			err1 := os.Mkdir(dir, 0700)
 			if err1 != nil {
-				log.Fatalf("Create dir '%s' failed:%s", dir, err1)
+				logrus.Fatalf("Create dir '%s' failed:%s", dir, err1)
 			}
 		}
 	}
@@ -88,26 +88,25 @@ func Start(addr, staticHomeDir, srvVersion, receiveDir, imageDir, viewPath strin
 		err := s.httpSrv.ListenAndServe()
 		if err != nil {
 			shutdown <- struct{}{}
-			log.Printf("%v", err)
+			logrus.Printf("%v", err)
 		}
 	}()
-	log.Printf("The service is ready to listen and serve on %s.", s.httpSrv.Addr)
+	logrus.Printf("The service is ready to listen and serve on %s.", s.httpSrv.Addr)
 
 	select {
 	case killSignal := <-interrupt:
 		switch killSignal {
 		case os.Interrupt:
-			log.Print("Got SIGINT...")
+			logrus.Print("Got SIGINT...")
 		case syscall.SIGTERM:
-			log.Print("Got SIGTERM...")
+			logrus.Print("Got SIGTERM...")
 		}
 	case <-shutdown:
-		log.Printf("Get server shutdown request")
+		logrus.Printf("Get server shutdown request")
 	}
 
-	log.Print("The service is shutting down...")
+	logrus.Print("The service is shutting down...")
 	s.httpSrv.Shutdown(context.Background())
-	log.Print("Done")
 }
 
 //Stop will stop the  Lepus app

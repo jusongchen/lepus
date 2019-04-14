@@ -5,10 +5,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/jusongchen/lepus/app"
+	"github.com/sirupsen/logrus"
 )
 
 const version = "0.3"
@@ -18,10 +18,10 @@ const dirForStatic = "./public"
 const imageRelativeDir = "images"
 
 func main() {
-	fmt.Printf("Lepus version:%s", version)
+	logrus.Infof("Lepus version:%s", version)
 
 	if _, err := os.Stat(dirForStatic); os.IsNotExist(err) {
-		log.Fatalf("Directory for static web content does not exist:%s", dirForStatic)
+		logrus.Fatalf("Directory for static web content does not exist:%s", dirForStatic)
 	}
 
 	flag.Usage = func() {

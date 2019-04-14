@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,10 +17,15 @@ import (
 
 /*
 	routing path:
-	at home / form post -> /signup form post -> /selectphoto form post ->  where2 form post, branching to:
-			1) home /
-			2) /selectphoto
-			3) /sponsor , post -> home /
+	at home /
+		post -> /signup
+			post -> /selectphoto
+				post ->  where2
+					post 1) home
+						 2) /selectphoto
+						 3) /sponsor ,
+							post -> /home
+							post -> /selectphoto
 */
 func (s *lepus) routes(staticDir string) {
 
@@ -42,8 +46,11 @@ func (s *lepus) routes(staticDir string) {
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
 	// s.router.Post("/upload", s.uploadHandler())
 	s.router.Post("/where2", s.where2Handler())
+	s.router.Post("/sponsor", s.sponsorHandler())
 	s.router.HandleFunc("/about", s.handleAbout())
-	// s.router.HandleFunc("/", s.handleIndex())
+	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		renderError(w, fmt.Sprintf("path not found:%s", r.URL), http.StatusNotFound)
+	})
 
 }
 
@@ -133,7 +140,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
 	if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
 		return "", fmt.Errorf("内部错误:Write file failed:%v", err)
 	}
-	logrus.WithFields(logrus.Fields{"origin filename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
+	logrus.WithFields(logrus.Fields{"originFilename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
 
 	imagePathRelative := filepath.Join(s.imageDir, fileName)
 
@@ -180,7 +187,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				return
 			}
 
-			log.Printf("Participant Profile at %v:%+v", r.URL, profile)
+			logrus.Printf("Participant Profile at %v:%+v", r.URL, profile)
 
 			data := struct {
 				EducatorNames []string
@@ -237,14 +244,22 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 	})
 }
 
+func (s *lepus) sponsorHandler() http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		switch r.Method {
+		// case "GET":
+		case "POST":
+			s.Render(w, "sponsor", struct{}{})
+		default:
+			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+		}
+	})
+}
+
 func (s *lepus) handleAbout() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Lepus version:%s", s.version)
 	})
 }
-
-// func (s *LepusServer) handleIndex() http.HandlerFunc {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-// 	})
-// }

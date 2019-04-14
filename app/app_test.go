@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/jusongchen/lepus/app"
+	"github.com/sirupsen/logrus"
 )
 
 func TestApp(t *testing.T) {
@@ -143,7 +143,7 @@ func postUploadFileRequest(extraParams map[string]string, nameOfInput string, fi
 
 	request, err := newfileUploadRequest(urlPath, extraParams, nameOfInput, filePath)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	client := &http.Client{}
 	return client.Do(request)
