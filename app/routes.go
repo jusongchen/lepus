@@ -20,12 +20,11 @@ import (
 	at home /
 		post -> /signup
 			post -> /selectphoto
-				post ->  where2
-					post 1) home
+				post ->  /where2
+					post 1) /home
 						 2) /selectphoto
-						 3) /sponsor ,
+						 3) /sponsor
 							post -> /home
-							post -> /selectphoto
 */
 func (s *lepus) routes(staticDir string) {
 
