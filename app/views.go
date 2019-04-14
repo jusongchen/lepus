@@ -67,8 +67,8 @@ func (s *lepus) initTemplates(viewPath string) error {
 func (s *lepus) Render(w http.ResponseWriter, urlPath string, data interface{}) error {
 	t := s.tempMap[urlPath]
 	if t == nil {
-		logrus.Fatalf("cannot find template for url %s", urlPath)
+		logrus.Errorf("cannot find template for url %s", urlPath)
 	}
+	// t.ExecuteTemplate(os.Stderr, "bootstrap", data)
 	return t.ExecuteTemplate(w, "bootstrap", data)
-	// return nil
 }

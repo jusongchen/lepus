@@ -18,7 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const maxUploadSize = 80 * 1024 * 1024 //MB
+const maxUploadSize = 200 * 1024 * 1024 //MB
 
 //lepus is the server to implement all Lepus features
 type lepus struct {
