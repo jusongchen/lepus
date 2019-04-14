@@ -94,7 +94,6 @@ func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
 	err = r.ParseMultipartForm(maxUploadSize)
 
 	if err != nil {
-
 		// renderError(w, errMsg, http.StatusBadRequest)
 		return "", fmt.Errorf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024)
 	}
@@ -117,7 +116,8 @@ func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
 
 	fileExtensions := []string{"jpg", "png", "gif", "webp", "cr2", "tif", "bmp", "heif", "jxr", "psd", "ico", "mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "mpg", "flv"}
 
-	if !(filetype.IsImage(fileBytes) || filetype.IsVideo(fileBytes) || filetype.IsAudio(fileBytes)) {
+	isImage := filetype.IsImage(fileBytes)
+	if !(isImage || filetype.IsVideo(fileBytes) || filetype.IsAudio(fileBytes)) {
 		return "", fmt.Errorf("无法识别上传文件的格式,目前支持的文件格式:\n%v\n请将相片或视频转换成支持的格式再上传", strings.Join(fileExtensions, " "))
 	}
 
@@ -140,6 +140,10 @@ func uploadFile(w http.ResponseWriter, r *http.Request) (string, error) {
 		return "", fmt.Errorf("内部错误:Write file failed:%v", err)
 	}
 	logrus.WithFields(logrus.Fields{"originFilename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
+
+	if !isImage {
+		return "", nil
+	}
 
 	imagePathRelative := filepath.Join(s.imageDir, fileName)
 
@@ -171,22 +175,37 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 
 func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var errMsg string
+		var err error
+		defer func() {
+			if err != nil {
+				renderError(w, errMsg, http.StatusBadRequest)
+				logrus.WithError(err).Error(errMsg)
+			}
+		}()
+
 		switch r.Method {
 		// case "GET":
 		case "POST":
 
-			if err := r.ParseForm(); err != nil {
-				renderError(w, "CANNOT_PARSE_FORM", http.StatusBadRequest)
+			if err = r.ParseForm(); err != nil {
+				errMsg = fmt.Sprintf("内部错误：CANNOT_PARSE_FORM at URL:%v", r.URL)
 				return
 			}
-			sessionID := s.getSessionID(w, r)
+			sessionID, err := s.getSessionID(w, r)
+			if err != nil {
+				errMsg = fmt.Sprintf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL)
+				return
+			}
 
 			profile, err := getParticipantProfile(sessionID)
 			if err != nil {
+				errMsg = fmt.Sprintf("内部错误：CANNOT get participant profile at URL:%v", r.URL)
 				return
 			}
 
-			logrus.Printf("Participant Profile at %v:%+v", r.URL, profile)
+			logrus.WithField("URL", r.URL).Infof("Participant Profile:%+v", profile)
 
 			data := struct {
 				EducatorNames []string
@@ -197,7 +216,9 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			}
 			s.Render(w, "selectphoto", data)
 		default:
-			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+			err = fmt.Errorf("BadRequest")
+			errMsg = fmt.Sprintf("Unknown http method for url %s:%s", r.URL, r.Method)
+			return
 		}
 	})
 }
@@ -220,9 +241,19 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 			imageFile, err := uploadFile(w, r)
 			if err != nil {
 				logrus.WithError(err).Errorf("uploadFile failed")
+				if strings.Contains(err.Error(), "文件太大") {
+					renderError(w, err.Error(), http.StatusBadRequest)
+					return
+				}
 			}
 
-			sessionID := s.getSessionID(w, r)
+			sessionID, err := s.getSessionID(w, r)
+			if err != nil {
+				errMsg := fmt.Sprintf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL)
+				renderError(w, errMsg, http.StatusBadRequest)
+				logrus.Error(errMsg)
+
+			}
 			data := ctrlDataTyp{SessionID: sessionID,
 				InfoText:      "上传成功",
 				InfoType:      "success",

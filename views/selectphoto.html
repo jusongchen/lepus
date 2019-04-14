@@ -9,7 +9,7 @@
 
     <div class="form-group">
       <label for="file1">请选择要上传的照片或视频</label>
-      <input type="file" name="uploadFile"  id="file1" autofocus required/>
+      <input type="file" name="uploadFile"  id="file1"  required/>
     </div>
     
   <div class="form-group">
@@ -33,7 +33,7 @@
     <div class="row"> &nbsp; </div>
     <!-- <input name="next-action" class="col" type="submit" value="开始上传"> -->
     <div class="text-center"> 
-      <button type="submit" form="form1" value="Submit" class="btn btn-outline-primary " >开始上传</button>
+      <button type="submit" id="btn33" form="form1" value="Submit" class="btn btn-outline-primary " >开始上传</button>
     </div>
     <div class="row"> &nbsp; </div>
   </form>
@@ -47,14 +47,13 @@
         var checkboxes = document.querySelectorAll('input[type="checkbox"]');
         var checkedOne = Array.prototype.slice.call(checkboxes).some(x => x.checked);
 
-        // form.myButton.disabled = true;
-        console.log("in checkForm()")
         if (!checkedOne) {
             $('.alert').show()
-            // alert("请选择一位或多位老师")
             return false};
+            // document.getElementById("btn33").disabled = true;
         return true
     }
+
 </script>
   
 {{end}}      
