@@ -19,7 +19,7 @@ func getParticipantProfile(sessionID string) (participantProfileTyp, error) {
 	profile := participantProfileTyp{}
 	err := json.Unmarshal([]byte(sessionID), &profile)
 	if err != nil {
-		logrus.Fatalf(`Failed to unmarshal to participantProfile:
+		logrus.Errorf(`Failed to unmarshal to participantProfile:
 			input:%s
 			Struct:%+v
 			err:%v`, sessionID, profile, err)
@@ -28,32 +28,23 @@ func getParticipantProfile(sessionID string) (participantProfileTyp, error) {
 
 }
 
-func (s *lepus) getSessionID(w http.ResponseWriter, r *http.Request) (sessionID string) {
+func (s *lepus) getSessionID(w http.ResponseWriter, r *http.Request) (string, error) {
 	// two cases:
 	// 		1) form post from /where2. in this case, the sessionID string is set
 	//		2) form post from /signup. in this case , the sessionID string is not set, but name,gradYear,educators are set
 
-	defer func() {
-		logrus.Printf("sessionID at %s:%+v", r.URL, sessionID)
-	}()
-
 	sID := r.Form["sessionID"]
 	if sID != nil {
-		sessionID = sID[0]
-		return
+		return sID[0], nil
 	}
-	sessionID = s.newSessionIDFromForm(w, r)
-	return
+	return s.newSessionIDFromForm(w, r)
 }
 
-func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) string {
+func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) (string, error) {
 
 	// session not found
 	if r.Form["name"] == nil || r.Form["gradYear"] == nil {
-		errMsg := fmt.Sprintf("sessionID missing,  and missing input name or gradYear, URL:%v", r.URL)
-		renderError(w, errMsg, http.StatusInternalServerError)
-		logrus.Fatalf(errMsg)
-		return ""
+		return "", fmt.Errorf("Cannot get sessionID for URL:%v", r.URL)
 	}
 
 	profile := participantProfileTyp{
@@ -64,12 +55,9 @@ func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) str
 
 	b, err := json.Marshal(profile)
 	if err != nil {
-		errMsg := fmt.Sprintf("json Marshall %v failed:%v", profile, err)
-		renderError(w, errMsg, http.StatusInternalServerError)
-		logrus.Fatalf(errMsg)
-		return ""
+		return "", fmt.Errorf("json Marshall %v failed:%v", profile, err)
 	}
 
-	return string(b)
+	return string(b), nil
 
 }

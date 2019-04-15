@@ -1,5 +1,4 @@
 
-* upload file type extension, medium type support
-* /sponsor *
-
+* disable submit when upload
+* image rotated
 * DB support

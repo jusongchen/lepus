@@ -4,12 +4,12 @@
   <div class="row"> &nbsp; </div>
   <div class="row"> &nbsp; </div>
 
-  <form id="form1" enctype="multipart/form-data" action="/where2" method="post" onsubmit="return checkForm(this);">
+  <form id="form1" enctype="multipart/form-data" action="/where2" method="post" >
     <input name="sessionID" type="hidden" value="{{.SessionID}}" >
 
     <div class="form-group">
       <label for="file1">请选择要上传的照片或视频</label>
-      <input type="file" name="uploadFile"  id="file1" autofocus required/>
+      <input type="file" name="uploadFile"  id="file1" />
     </div>
     
   <div class="form-group">
@@ -29,32 +29,58 @@
     <div class="alert alert-warning alert-dismissible fade show" id="selectEduAlert" role="alert" style="display:none;">
       请选择一位或多位老师
     </div>
+    <div class="alert alert-warning alert-dismissible fade show" id="selectFileAlert" role="alert" style="display:none;">
+      请先选择要上传的照片或视频
+    </div>
 
     <div class="row"> &nbsp; </div>
-    <!-- <input name="next-action" class="col" type="submit" value="开始上传"> -->
     <div class="text-center"> 
-      <button type="submit" form="form1" value="Submit" class="btn btn-outline-primary " >开始上传</button>
+      <button type="submit" id="btnSubmit" hidden disabled=true form="form1"  value="Submit" class="btn btn-primary" >
+        开始上传
+      </button>
     </div>
     <div class="row"> &nbsp; </div>
+
+    <div class="alert alert-info alert-dismissible fade show" id="inProgressAlert" role="alert" style="display:none;">
+        正在上传，请稍候 . . . 
+      </div>
   </form>
 </div>
-  <script type='text/javascript'>
-    function checkForm(form)
-    {
-        //
+
+<script type='text/javascript'>
+
+
+  
+    $(document).ready(function () {
+
+      function inputValid(){
         // validate form fields
-        //
         var checkboxes = document.querySelectorAll('input[type="checkbox"]');
         var checkedOne = Array.prototype.slice.call(checkboxes).some(x => x.checked);
+        var fileSelected =  (document.getElementById("file1").files.length != 0 )
+        return checkedOne && fileSelected;
+      }
 
-        // form.myButton.disabled = true;
-        console.log("in checkForm()")
-        if (!checkedOne) {
-            $('.alert').show()
-            // alert("请选择一位或多位老师")
-            return false};
-        return true
-    }
+      $('input:not([type="submit"])').change(function(){
+        var valid = inputValid()
+        $('#btnSubmit').prop('disabled',!valid)
+        $('#btnSubmit').prop('hidden',!valid)
+        console.log("input valid?",valid)
+      });
+  
+    //form validate
+    $( "#form1" ).submit(function( event ) {
+        if (!inputValid()) {
+                $('#selectEduAlert').show()
+                $('#selectFileAlert').show()
+                // And we prevent the form from being sent by canceling the event
+                event.preventDefault();
+              }
+            $('#inProgressAlert').show()
+              
+      });
+  })
+
 </script>
   
 {{end}}      
