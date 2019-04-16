@@ -24,7 +24,6 @@ const maxUploadSize = 200 * 1024 * 1024 //MB
 type lepus struct {
 	router        *chi.Mux
 	addr          string
-	version       string
 	receiveDir    string
 	staticHomeDir string
 	imageDir      string
@@ -38,7 +37,7 @@ type lepus struct {
 var s lepus
 
 //Start starts Lepus server
-func Start(addr, staticHomeDir, srvVersion, receiveDir, imageDir, viewPath string, educatorNames []string) {
+func Start(addr, staticHomeDir, receiveDir, imageDir, viewPath string, educatorNames []string) {
 
 	// insert an whitespace if educatorNames is less than 2 charactor long
 
@@ -54,7 +53,6 @@ func Start(addr, staticHomeDir, srvVersion, receiveDir, imageDir, viewPath strin
 	s = lepus{
 		router:        chi.NewRouter(),
 		addr:          addr,
-		version:       srvVersion,
 		receiveDir:    receiveDir,
 		staticHomeDir: staticHomeDir,
 		imageDir:      imageDir,

@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/go-chi/chi/middleware"
 	"github.com/h2non/filetype"
+	"github.com/jusongchen/lepus/version"
 	"github.com/sirupsen/logrus"
 )
 
@@ -45,7 +47,7 @@ func (s *lepus) routes(staticDir string) {
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
 	s.router.Post("/where2", s.where2Handler())
 	s.router.Post("/sponsor", s.sponsorHandler())
-	s.router.HandleFunc("/about", s.handleAbout())
+	s.router.HandleFunc("/home", s.handlerHome())
 	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		renderError(w, fmt.Sprintf("path not found:%s", r.URL), http.StatusNotFound)
 	})
@@ -79,6 +81,7 @@ func resizeImage(srcFile, dstFile string) error {
 		logrus.WithError(err).Error("resizeImage():save image failed")
 		return err
 	}
+	logrus.Infof("resizeImage():save image file to %s", dstFile)
 	return nil
 
 }
@@ -289,8 +292,25 @@ func (s *lepus) sponsorHandler() http.HandlerFunc {
 	})
 }
 
-func (s *lepus) handleAbout() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Lepus version:%s", s.version)
+// handlerHome returns a simple HTTP handler function which writes a response.
+func (s *lepus) handlerHome() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		info := struct {
+			BuildTime string `json:"buildTime"`
+			Commit    string `json:"commit"`
+			Release   string `json:"release"`
+			Message   string `json:"message"`
+		}{
+			version.BuildTime, version.Commit, version.Release, "Hello Lepus Administrators!",
+		}
+
+		body, err := json.Marshal(info)
+		if err != nil {
+			logrus.WithError(err).Errorf("Could not encode data:%v", info)
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
 	})
 }
