@@ -2,8 +2,6 @@ package app
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi"
@@ -11,9 +9,7 @@ import (
 
 func registerStaticWeb(r *chi.Mux, staticDir string) {
 
-	workDir, _ := os.Getwd()
-	filesDir := filepath.Join(workDir, staticDir)
-	FileServer(r, "/", http.Dir(filesDir))
+	FileServer(r, "/", http.Dir(staticDir))
 
 }
 
