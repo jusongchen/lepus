@@ -38,5 +38,21 @@ run: osx
 	open http://localhost:8081
 	cd ../lepus-tmp && 	lepus-osx/lepus -port 8081
 
+
+win32run: 
+	git clone https://github.com/jusongchen/lepus.git
+	cd dist-win32
+	unzip lepus-win32.zip -d lepus-win32
+	open -o http://localhost:8082
+	lepus-win32\lepus.exe -p 8082
+	
+win64run: 
+	git clone https://github.com/jusongchen/lepus.git
+	cd dist-win64
+	unzip lepus-win64.zip -d lepus-win64 
+	open -o http://localhost:8082
+	lepus-win64\lepus.exe -p 8082
+	
+
 test:
 	go test -v -race ./...
