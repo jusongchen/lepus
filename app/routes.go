@@ -41,7 +41,7 @@ func (s *lepus) routes(staticDir string) {
 	s.router.Use(middleware.RealIP)
 	s.router.Use(middleware.Recoverer)
 
-	registerStaticWeb(s.router, staticDir)
+	registerStaticWeb(s.router, filepath.Join(s.lepusHomeDir, staticDir))
 
 	s.router.Handle("/signup", s.signupHandler())
 	s.router.Handle("/selectphoto", s.selectPhotoHandler())
