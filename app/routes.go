@@ -87,11 +87,8 @@ func resizeImage(srcFile, dstFile string) error {
 }
 
 //uploadFile returns resized image file and error
-func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID string, imagePathRelative string, err error) {
+func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID string, resized_filename string, err error) {
 
-	// var err error
-	// var sessionID string
-	// validate file size
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	err = r.ParseMultipartForm(maxUploadSize)
@@ -159,17 +156,15 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID st
 		return
 	}
 
-	imagePathRelative = filepath.Join(s.imageDir, fileName)
-
-	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, imagePathRelative)); err != nil {
+	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
 		// just log error, we may get an error during resize the picture as we do not handle all formats
 		logrus.WithError(err).WithField("filename", newPath).Error("resize image failed")
-		//do not return error here
+		//do not return error here, as even resize failed, we still move forward
 		err = nil
-		imagePathRelative = ""
+		resized_filename = ""
 		return
 	}
-
+	resized_filename = fileName
 	return
 }
 
@@ -252,20 +247,21 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 			var err error
 			data := ctrlDataTyp{}
 
+			// imageFile is a filename within public/images folder
 			sessionID, imageFile, err = s.uploadFile(w, r)
 			if err != nil {
 				data = ctrlDataTyp{
 					SessionID: sessionID,
 					InfoText:  err.Error(),
 					InfoType:  "danger",
-					ImageFile: imageFile,
+					ImageFile: s.imageDir + "/" + imageFile,
 				}
 			} else {
 				data = ctrlDataTyp{
 					SessionID: sessionID,
 					InfoText:  "上传成功",
 					InfoType:  "success",
-					ImageFile: imageFile,
+					ImageFile: s.imageDir + "/" + imageFile,
 				}
 			}
 

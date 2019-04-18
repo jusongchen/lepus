@@ -15,10 +15,10 @@ import (
 )
 
 const defaultPort = "8080"
-const receiveDir = "./received"
-const dirForStatic = "./public"
+const receiveDir = "received"
+const dirForStatic = "public"
 const imageRelativeDir = "images"
-const viewPath = "views/"
+const viewPath = "views"
 
 func main() {
 	logrus.Infof("Lepus version:%s", version.Release)
