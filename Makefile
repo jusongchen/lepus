@@ -12,19 +12,17 @@ win32:
 		-X ${PROJECT}/version.Commit=${COMMIT} -X ${PROJECT}/version.BuildTime=${BUILD_TIME}" \
 		-o lepus.exe
 
-	7z a lepus-win32.7z lepus.exe
+	7z a lepus-win32.7z lepus.exe views/
 	# return 0 if when no file to rm
 	rm public/images/* || true 
 	7z a lepus-win32.7z public/  -xr!*DS_Store
-	7z a lepus-win32.7z views/
 	mv lepus-win32.7z ./dist-win32/lepus-win32.7z
 
 	# deliver as zip format as well
-	7z a  -tzip lepus-win32.zip lepus.exe
 	# return 0 if when no file to rm
 	rm public/images/* || true 
-	zip a  lepus-win32.zip public/  -xr!*DS_Store
-	zip a  lepus-win32.zip views/
+	7z a  -tzip lepus-win32.zip lepus.exe views/
+	7z a  lepus-win32.zip public/  -xr!*DS_Store
 	mv lepus-win32.zip ./dist-win32/lepus-win32.zip
 
 osx:
