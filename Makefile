@@ -19,6 +19,14 @@ win32:
 	7z a lepus-win32.7z views/
 	mv lepus-win32.7z ./dist-win32/lepus-win32.7z
 
+	# deliver as zip format as well
+	7z a  -tzip lepus-win32.zip lepus.exe
+	# return 0 if when no file to rm
+	rm public/images/* || true 
+	zip a  lepus-win32.zip public/  -xr!*DS_Store
+	zip a  lepus-win32.zip views/
+	mv lepus-win32.zip ./dist-win32/lepus-win32.zip
+
 osx:
 	GOOS=darwin GOARCH=amd64 go build \
 		-ldflags "-s -w -X ${PROJECT}/version.Release=${RELEASE} \
