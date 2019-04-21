@@ -8,15 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type participantProfileTyp struct {
-	Name              string
-	GradYear          string
-	SelectedEducators []string
-}
+func getParticipantProfile(sessionID string) (AlumnusProfile, error) {
 
-func getParticipantProfile(sessionID string) (participantProfileTyp, error) {
-
-	profile := participantProfileTyp{}
+	profile := AlumnusProfile{}
 	err := json.Unmarshal([]byte(sessionID), &profile)
 	if err != nil {
 		logrus.Errorf(`Failed to unmarshal to participantProfile:
@@ -47,12 +41,18 @@ func (s *lepus) newSessionIDFromForm(w http.ResponseWriter, r *http.Request) (st
 		return "", fmt.Errorf("Cannot get sessionID for URL:%v", r.URL)
 	}
 
-	profile := participantProfileTyp{
-		Name:              r.Form["name"][0],
-		GradYear:          r.Form["gradYear"][0],
+	profile := AlumnusProfile{
+		Alumnus: Alumnus{
+			Name:     r.Form["name"][0],
+			GradYear: r.Form["gradYear"][0],
+		},
 		SelectedEducators: r.Form["educators"],
 	}
 
+	_, err := s.SaveSignup(profile)
+	if err != nil {
+		return "", err
+	}
 	b, err := json.Marshal(profile)
 	if err != nil {
 		return "", fmt.Errorf("json Marshall %v failed:%v", profile, err)

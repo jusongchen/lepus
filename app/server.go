@@ -131,10 +131,10 @@ func (s *lepus) serverErrorWithMsg(w http.ResponseWriter, err error, msg string)
 	s.serverError(w, errors.WithMessage(err, msg))
 }
 
-//  then sends a generic 500 Internal Server Error response to the user.
+//serverError logs err, then sends a generic 500 Internal Server Error response to the user.
 func (s *lepus) serverError(w http.ResponseWriter, err error) {
 	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
-	s.errorLog.Println(trace)
+	s.errorLog.Output(2, trace)
 
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }

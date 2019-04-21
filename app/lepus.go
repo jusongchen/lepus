@@ -25,3 +25,9 @@ type Media struct {
 	UploadTime     time.Time
 	Data           []byte
 }
+
+// AlumnusProfile exposed
+type AlumnusProfile struct {
+	Alumnus
+	SelectedEducators []string
+}
