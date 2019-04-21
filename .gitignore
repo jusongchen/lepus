@@ -7,3 +7,5 @@ lepus.exe
 
 debug
 dist-osx/lepus-osx.zip
+lepus.v1.DB
+run_fresh.sh
