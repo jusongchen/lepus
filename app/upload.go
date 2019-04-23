@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/h2non/filetype"
@@ -44,9 +45,18 @@ func resizeImage(srcFile, dstFile string) error {
 //uploadFile returns resized image file and error
 func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID string, resizedFilename string, err error) {
 
+	startTime := time.Now()
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	err = r.ParseMultipartForm(maxUploadSize)
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
+	logrus.WithError(err).WithFields(logrus.Fields{
+		"endTime":            endTime.Format(time.RFC3339),
+		"duration":           duration,
+		"size":               r.ContentLength,
+		"rate(bytes/second)": float64(r.ContentLength) / duration.Seconds(),
+	}).Info("file upload completed")
 
 	if err != nil {
 		// renderError(w, msg,: http.StatusBadRequest)
@@ -60,8 +70,6 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID st
 	} else {
 		logrus.Infof("get SessionID %s at URL:%v", sessionID, r.URL)
 	}
-
-	// fmt.Printf("upload photo form value:%s\n", r.Form)
 
 	file, fileHeader, err := r.FormFile("uploadFile")
 	if err != nil {
@@ -105,7 +113,11 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID st
 		err = fmt.Errorf("内部错误:Write file failed:%v", err)
 		return
 	}
-	logrus.WithFields(logrus.Fields{"originFilename": fileHeader.Filename, "newPath": newPath}).Infof("Save uploaded file")
+	logrus.WithFields(logrus.Fields{
+		"originName": fileHeader.Filename,
+		"newName":    fileName,
+		"size":       fileHeader.Size,
+	}).Info("uploaded file saved")
 
 	if !isImage {
 		return

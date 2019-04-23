@@ -122,19 +122,23 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 
 			// imageFile is a filename within public/images folder
 			sessionID, imageFile, err = s.uploadFile(w, r)
+			imageFilePath := ""
+			if imageFile != "" {
+				imageFilePath = s.imageDir + "/" + imageFile
+			}
 			if err != nil {
 				data = ctrlDataTyp{
 					SessionID: sessionID,
 					InfoText:  err.Error(),
 					InfoType:  "danger",
-					ImageFile: s.imageDir + "/" + imageFile,
+					ImageFile: imageFilePath,
 				}
 			} else {
 				data = ctrlDataTyp{
 					SessionID: sessionID,
 					InfoText:  "上传成功",
 					InfoType:  "success",
-					ImageFile: s.imageDir + "/" + imageFile,
+					ImageFile: imageFilePath,
 				}
 			}
 
