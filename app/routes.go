@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -10,6 +12,61 @@ import (
 	"github.com/jusongchen/lepus/version"
 	"github.com/sirupsen/logrus"
 )
+
+type profileCtxKeyType string
+
+const profileCtxKey profileCtxKeyType = "profile-json"
+
+// ErrNoAlumnusName is a customized error
+var ErrNoAlumnusName = errors.New("missing context value for profile-json")
+
+// GetAlumnusProfile gets alumnus profile from context
+// returns ErrNoAlumnusProfile if there is no AlumnusProfile.
+func getAlumnusProfile(ctx context.Context) string {
+	// func getAlumnusProfile(ctx context.Context) (string, error) {
+
+	fmt.Printf("ctxValue:%+v\n", ctx.Value(profileCtxKey))
+
+	// profile, ok := ctx.Value(profileCtxKey).(AlumnusProfile)
+	profileJSON, ok := ctx.Value(profileCtxKey).(string)
+	if !ok {
+		return ""
+	}
+
+	return profileJSON
+}
+
+// AddProfile adds user profile
+func AddProfile(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// if we already have a profile
+		if profileJSON := getAlumnusProfile(r.Context()); profileJSON != "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// now try to get profile from Form
+		profile, err := newUserProfileFromForm(w, r)
+		if err != nil || profile == nil {
+			logrus.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
+
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		logrus.Infof("Get New Profile from form:%v", profile)
+
+		b, err := json.Marshal(profile)
+		if err != nil {
+			logrus.WithError(err).Errorf("json Marshall failed:%v", profile)
+		}
+
+		ctx := context.WithValue(r.Context(), profileCtxKey, string(b))
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 /*
 	routing path:
@@ -26,25 +83,30 @@ func (s *lepus) routes(staticDir string) {
 
 	// A good base middleware stack
 	logger := logrus.New()
-	logger.Formatter = &logrus.JSONFormatter{
+	// logger.Formatter = &logrus.JSONFormatter{
+	logger.Formatter = &logrus.TextFormatter{
 		// disable, as we set our own
 		DisableTimestamp: true,
 	}
-	s.router.Use(NewStructuredLogger(logger))
-	s.router.Use(middleware.RequestID)
-	s.router.Use(middleware.RealIP)
-	s.router.Use(middleware.Recoverer)
+	r := s.router
+	r.Use(NewStructuredLogger(logger))
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Recoverer)
 
-	registerStaticWeb(s.router, filepath.Join(s.lepusHomeDir, staticDir))
+	r.Use(AddProfile)
 
-	s.router.Handle("/signup", s.signupHandler())
-	s.router.Handle("/selectphoto", s.selectPhotoHandler())
-	s.router.Post("/where2", s.where2Handler())
-	s.router.Post("/sponsor", s.sponsorHandler())
-	s.router.HandleFunc("/home", s.handlerHome())
-	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {
+	registerStaticWeb(r, filepath.Join(s.lepusHomeDir, staticDir))
+	r.HandleFunc("/home", s.handlerHome())
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w)
 	})
+
+	r.Handle("/selectphoto", s.selectPhotoHandler())
+	r.Post("/where2", s.where2Handler())
+	r.Post("/sponsor", s.sponsorHandler())
+
+	r.Handle("/signup", s.signupHandler())
 
 }
 
@@ -53,6 +115,16 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 		switch r.Method {
 		case "GET":
 			s.Render(w, "signup", s.educatorNames)
+
+		case "POST":
+
+			r.Method = "GET"
+			ctx := r.Context()
+			fmt.Printf("ctxValue:%+v\n", ctx.Value(profileCtxKey))
+
+			use gorilla session 
+			http.Cookie(Name:"user_profile",Value:ctx.Value(profileCtxKey),)
+			http.Redirect(w, r, "/selectphoto", http.StatusSeeOther)
 
 		default:
 			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
@@ -66,35 +138,56 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 		var err error
 
 		switch r.Method {
-		// case "GET":
-		case "POST":
-
-			if err = r.ParseForm(); err != nil {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_PARSE_FORM at URL:%v", r.URL))
+		case "GET":
+			profileJSON := getAlumnusProfile(r.Context())
+			if profileJSON == "" {
+				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：cannot get AlumnusProfile from http request:%v", r.URL))
 				return
 			}
-			sessionID, err := s.getSessionID(w, r)
+
+			profile, err := getParticipantProfile(profileJSON)
 			if err != nil {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL))
+				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：getParticipantProfile failed at:%v", r.URL))
 				return
 			}
-
-			profile, err := getParticipantProfile(sessionID)
-			if err != nil {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT get participant profile at URL:%v", r.URL))
-				return
-			}
-
-			logrus.WithField("URL", r.URL).Infof("Participant Profile:%+v", profile)
 
 			data := struct {
 				EducatorNames []string
 				SessionID     string
 			}{
 				EducatorNames: profile.SelectedEducators,
-				SessionID:     sessionID,
+				SessionID:     profileJSON,
 			}
 			s.Render(w, "selectphoto", data)
+
+		// case "POST":
+
+		// 	if err = r.ParseForm(); err != nil {
+		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_PARSE_FORM at URL:%v", r.URL))
+		// 		return
+		// 	}
+		// 	sessionID, err := getSessionID(w, r)
+		// 	if err != nil {
+		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL))
+		// 		return
+		// 	}
+
+		// 	profile, err := getParticipantProfile(sessionID)
+		// 	if err != nil {
+		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT get participant profile at URL:%v", r.URL))
+		// 		return
+		// 	}
+
+		// 	logrus.WithField("URL", r.URL).Infof("Participant Profile:%+v", profile)
+
+		// 	data := struct {
+		// 		EducatorNames []string
+		// 		SessionID     string
+		// 	}{
+		// 		EducatorNames: profile.SelectedEducators,
+		// 		SessionID:     sessionID,
+		// 	}
+		// 	s.Render(w, "selectphoto", data)
 		default:
 			err = fmt.Errorf("BadRequest")
 			s.serverErrorWithMsg(w, err, fmt.Sprintf("Unknown http method for url %s:%s", r.URL, r.Method))
