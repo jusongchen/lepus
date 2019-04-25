@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"unicode/utf8"
 
+	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 
 	"github.com/go-chi/chi"
@@ -35,16 +36,16 @@ type lepus struct {
 	imageDir      string
 	educatorNames []string
 	viewPath      string
-	//tempMap key-> urlPath , such as signUp
-	tempMap map[string]*template.Template
-	httpSrv *http.Server
-	store   *dbStore
+	tempMap       map[string]*template.Template
+	httpSrv       *http.Server
+	store         *dbStore
+	cookieStore   *sessions.CookieStore
 }
 
 var s lepus
 
 //Start starts Lepus server
-func Start(db *sql.DB, addr, lepusHomeDir, staticHomeDir, receiveDir, imageDir, viewPath string, educatorNames []string) {
+func Start(db *sql.DB, sessionKey, addr, lepusHomeDir, staticHomeDir, receiveDir, imageDir, viewPath string, educatorNames []string) {
 
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
@@ -57,6 +58,7 @@ func Start(db *sql.DB, addr, lepusHomeDir, staticHomeDir, receiveDir, imageDir, 
 		imageDir:      imageDir,
 		viewPath:      viewPath,
 		errorLog:      errorLog,
+		cookieStore:   sessions.NewCookieStore([]byte(sessionKey)),
 	}
 
 	// insert an whitespace if educatorNames is less than 2 charactor long

@@ -43,7 +43,7 @@ func resizeImage(srcFile, dstFile string) error {
 }
 
 //uploadFile returns resized image file and error
-func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID string, resizedFilename string, err error) {
+func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (resizedFilename string, err error) {
 
 	startTime := time.Now()
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
@@ -63,13 +63,6 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (sessionID st
 		err = fmt.Errorf("上传的文件太大（已超过%d兆字节）:%v", maxUploadSize/1024/1024, err)
 		return
 	}
-	// TODO JUSONG
-	// sessionID, err = getSessionID(w, r)
-	// if err != nil {
-	// 	logrus.Errorf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL)
-	// } else {
-	// 	logrus.Infof("get SessionID %s at URL:%v", sessionID, r.URL)
-	// }
 
 	file, fileHeader, err := r.FormFile("uploadFile")
 	if err != nil {

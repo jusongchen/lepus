@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,72 +12,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type profileCtxKeyType string
+const lepusSessionName = "alumnus_profile"
+const eduSessionValKey = "educator_names"
+const nameSessionValKey = "alumnus_name"
+const gradYearSessionValKey = "alumnus_gradyear"
+const imagFileSessionValKey = "imageFile"
+const uploadInfoTextValKey = "infoText"
+const uploadInfoTypeValKey = "infoType"
 
-const profileCtxKey profileCtxKeyType = "profile-json"
-
-// ErrNoAlumnusName is a customized error
-var ErrNoAlumnusName = errors.New("missing context value for profile-json")
-
-// GetAlumnusProfile gets alumnus profile from context
-// returns ErrNoAlumnusProfile if there is no AlumnusProfile.
-func getAlumnusProfile(ctx context.Context) string {
-	// func getAlumnusProfile(ctx context.Context) (string, error) {
-
-	fmt.Printf("ctxValue:%+v\n", ctx.Value(profileCtxKey))
-
-	// profile, ok := ctx.Value(profileCtxKey).(AlumnusProfile)
-	profileJSON, ok := ctx.Value(profileCtxKey).(string)
-	if !ok {
-		return ""
-	}
-
-	return profileJSON
-}
-
-// AddProfile adds user profile
-func AddProfile(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// if we already have a profile
-		if profileJSON := getAlumnusProfile(r.Context()); profileJSON != "" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// now try to get profile from Form
-		profile, err := newUserProfileFromForm(w, r)
-		if err != nil || profile == nil {
-			logrus.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
-
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		logrus.Infof("Get New Profile from form:%v", profile)
-
-		b, err := json.Marshal(profile)
-		if err != nil {
-			logrus.WithError(err).Errorf("json Marshall failed:%v", profile)
-		}
-
-		ctx := context.WithValue(r.Context(), profileCtxKey, string(b))
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-/*
-	routing path:
-	at home /
-		post -> /signup
-			post -> /selectphoto
-				post ->  /where2
-					post 1) /home
-						 2) /selectphoto
-						 3) /sponsor
-							post -> /home
-*/
 func (s *lepus) routes(staticDir string) {
 
 	// A good base middleware stack
@@ -94,8 +35,6 @@ func (s *lepus) routes(staticDir string) {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 
-	r.Use(AddProfile)
-
 	registerStaticWeb(r, filepath.Join(s.lepusHomeDir, staticDir))
 	r.HandleFunc("/home", s.handlerHome())
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
@@ -103,9 +42,8 @@ func (s *lepus) routes(staticDir string) {
 	})
 
 	r.Handle("/selectphoto", s.selectPhotoHandler())
-	r.Post("/where2", s.where2Handler())
-	r.Post("/sponsor", s.sponsorHandler())
-
+	r.Handle("/where2", s.where2Handler())
+	r.Handle("/sponsor", s.sponsorHandler())
 	r.Handle("/signup", s.signupHandler())
 
 }
@@ -118,18 +56,59 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 
 		case "POST":
 
-			r.Method = "GET"
-			ctx := r.Context()
-			fmt.Printf("ctxValue:%+v\n", ctx.Value(profileCtxKey))
+			// now try to get profile from Form
+			profile, err := newUserProfileFromForm(w, r)
+			if err != nil || profile == nil {
+				logrus.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
+				s.serverErrorWithMsg(w, err, "Internal Error:Cannot get User Profile")
+				return
+			}
 
-			use gorilla session 
-			http.Cookie(Name:"user_profile",Value:ctx.Value(profileCtxKey),)
+			session, _ := s.cookieStore.Get(r, lepusSessionName)
+			// Set some session values.
+			session.Values[nameSessionValKey] = profile.Name
+			session.Values[gradYearSessionValKey] = profile.GradYear
+			session.Values[eduSessionValKey] = profile.SelectedEducators
+
+			// Save it before we write to the response/return from the handler.
+			session.Save(r, w)
+			// r.Method = "GET"
 			http.Redirect(w, r, "/selectphoto", http.StatusSeeOther)
 
 		default:
-			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
 		}
 	})
+}
+
+func (s *lepus) getUserProfile(w http.ResponseWriter, r *http.Request) *AlumnusProfile {
+
+	session, _ := s.cookieStore.Get(r, lepusSessionName)
+	// logrus.Infof("session values %v", session.Values)
+
+	name, ok := session.Values[nameSessionValKey].(string)
+	if !ok {
+		s.serverError(w, errors.New("Expect name values in cookie but not found"))
+		return nil
+	}
+
+	gradyear, ok := session.Values[gradYearSessionValKey].(string)
+	if !ok {
+		s.serverError(w, errors.New("Expect gradyear values in cookie but not found"))
+		return nil
+	}
+	educatorNames, ok := session.Values[eduSessionValKey].([]string)
+	if !ok {
+		s.serverError(w, errors.New("Expect educators values in cookie but not found"))
+		return nil
+	}
+	return &AlumnusProfile{
+		Alumnus: Alumnus{
+			Name:     name,
+			GradYear: gradyear,
+		},
+		SelectedEducators: educatorNames,
+	}
 }
 
 func (s *lepus) selectPhotoHandler() http.HandlerFunc {
@@ -139,15 +118,9 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 		switch r.Method {
 		case "GET":
-			profileJSON := getAlumnusProfile(r.Context())
-			if profileJSON == "" {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：cannot get AlumnusProfile from http request:%v", r.URL))
-				return
-			}
 
-			profile, err := getParticipantProfile(profileJSON)
-			if err != nil {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：getParticipantProfile failed at:%v", r.URL))
+			profile := s.getUserProfile(w, r)
+			if profile == nil {
 				return
 			}
 
@@ -155,42 +128,42 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				EducatorNames []string
 				SessionID     string
 			}{
+				// EducatorNames: profile.SelectedEducators,
 				EducatorNames: profile.SelectedEducators,
-				SessionID:     profileJSON,
+				SessionID:     "profileJSON",
+				// SessionID:     profileJSON,
 			}
 			s.Render(w, "selectphoto", data)
 
-		// case "POST":
+		case "POST":
 
-		// 	if err = r.ParseForm(); err != nil {
-		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_PARSE_FORM at URL:%v", r.URL))
-		// 		return
-		// 	}
-		// 	sessionID, err := getSessionID(w, r)
-		// 	if err != nil {
-		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT_GET_SESSION_ID at URL:%v", r.URL))
-		// 		return
-		// 	}
+			var imageFile string
+			var err error
 
-		// 	profile, err := getParticipantProfile(sessionID)
-		// 	if err != nil {
-		// 		s.serverErrorWithMsg(w, err, fmt.Sprintf("内部错误：CANNOT get participant profile at URL:%v", r.URL))
-		// 		return
-		// 	}
+			// imageFile is a filename within public/images folder
+			imageFile, err = s.uploadFile(w, r)
+			if imageFile != "" {
+				imageFile = s.imageDir + "/" + imageFile
+			}
+			infoText := "上传成功"
+			infoType := "success"
+			if err != nil {
+				infoText = err.Error()
+				infoType = "danger"
+			}
 
-		// 	logrus.WithField("URL", r.URL).Infof("Participant Profile:%+v", profile)
+			session, _ := s.cookieStore.Get(r, lepusSessionName)
 
-		// 	data := struct {
-		// 		EducatorNames []string
-		// 		SessionID     string
-		// 	}{
-		// 		EducatorNames: profile.SelectedEducators,
-		// 		SessionID:     sessionID,
-		// 	}
-		// 	s.Render(w, "selectphoto", data)
+			session.Values[imagFileSessionValKey] = imageFile
+			session.Values[uploadInfoTextValKey] = infoText
+			session.Values[uploadInfoTypeValKey] = infoType
+
+			session.Save(r, w)
+			http.Redirect(w, r, "/where2", http.StatusSeeOther)
+
 		default:
 			err = fmt.Errorf("BadRequest")
-			s.serverErrorWithMsg(w, err, fmt.Sprintf("Unknown http method for url %s:%s", r.URL, r.Method))
+			s.serverErrorWithMsg(w, err, fmt.Sprintf("Not handled http method for url %s:%s", r.URL, r.Method))
 			return
 		}
 	})
@@ -198,48 +171,42 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 func (s *lepus) where2Handler() http.HandlerFunc {
 
-	type ctrlDataTyp struct {
-		SessionID string
-		InfoText  string
-		InfoType  string
-		ImageFile string
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
-		// case "GET":
-		case "POST":
-			var sessionID, imageFile string
-			var err error
-			data := ctrlDataTyp{}
+		case "GET":
 
-			// imageFile is a filename within public/images folder
-			sessionID, imageFile, err = s.uploadFile(w, r)
-			imageFilePath := ""
-			if imageFile != "" {
-				imageFilePath = s.imageDir + "/" + imageFile
+			session, _ := s.cookieStore.Get(r, lepusSessionName)
+
+			infoText, ok := session.Values[uploadInfoTextValKey].(string)
+			if !ok {
+				s.serverError(w, errors.New("Expect uploadInfoTextValKey values in cookie but not found"))
+				return
 			}
-			if err != nil {
-				data = ctrlDataTyp{
-					SessionID: sessionID,
-					InfoText:  err.Error(),
-					InfoType:  "danger",
-					ImageFile: imageFilePath,
-				}
-			} else {
-				data = ctrlDataTyp{
-					SessionID: sessionID,
-					InfoText:  "上传成功",
-					InfoType:  "success",
-					ImageFile: imageFilePath,
-				}
+			infoType, ok := session.Values[uploadInfoTypeValKey].(string)
+			if !ok {
+				s.serverError(w, errors.New("Expect uploadInfoTypeValKey values in cookie but not found"))
+				return
+			}
+			imageFile, ok := session.Values[imagFileSessionValKey].(string)
+			if !ok {
+				s.serverError(w, errors.New("Expect imagFileSessionValKey values in cookie but not found"))
+				return
 			}
 
-			logrus.Infof("rendering where2 with data %+v", data)
-
+			data := struct {
+				InfoText  string
+				InfoType  string
+				ImageFile string
+			}{
+				InfoText:  infoText,
+				InfoType:  infoType,
+				ImageFile: imageFile,
+			}
 			s.Render(w, "where2", data)
+
 		default:
-			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
 		}
 	})
 }
@@ -249,11 +216,10 @@ func (s *lepus) sponsorHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
-		// case "GET":
-		case "POST":
+		case "GET":
 			s.Render(w, "sponsor", struct{}{})
 		default:
-			fmt.Fprintf(w, "Unknown http method for url %s:%s", r.URL, r.Method)
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
 		}
 	})
 }
