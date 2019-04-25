@@ -52,7 +52,7 @@ func main() {
 
 	request, err := newfileUploadRequest("http://localhost:8080/upload", extraParams, "uploadFile", "./resources/testPhoto1.jpg")
 	if err != nil {
-		logrus.Fatal(err)˝˝
+		logrus.Fatal(err)
 	}
 	client := &http.Client{}
 	resp, err := client.Do(request)
