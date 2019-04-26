@@ -16,7 +16,7 @@ const lepusSessionName = "alumnus_profile"
 const eduSessionValKey = "educator_names"
 const nameSessionValKey = "alumnus_name"
 const gradYearSessionValKey = "alumnus_gradyear"
-const imagFileSessionValKey = "imageFile"
+const imagFileSessionValKey = "resizedFile"
 const uploadInfoTextValKey = "infoText"
 const uploadInfoTypeValKey = "infoType"
 
@@ -137,24 +137,37 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 		case "POST":
 
-			var imageFile string
 			var err error
 
-			// imageFile is a filename within public/images folder
-			imageFile, err = s.uploadFile(w, r)
-			if imageFile != "" {
-				imageFile = s.imageDir + "/" + imageFile
+			// resizedFile is a filename within public/images folder
+			rpt, err := s.uploadFile(w, r)
+			resizedFile := rpt.resizedFilename
+
+			if err == nil {
+				logrus.Infof("Upload Info:%+v", *rpt)
+			} else {
+				logrus.WithError(err).Errorf("Upload Info:%v", rpt)
+
 			}
-			infoText := "上传成功"
+
+			infoText := "上传成功!"
 			infoType := "success"
 			if err != nil {
 				infoText = err.Error()
 				infoType = "danger"
 			}
 
+			if rpt.fileSize != 0 {
+				infoText += fmt.Sprintf(" 文件大小:%.2f MB 上传用时:%v", float64(rpt.fileSize)/1024/1024, rpt.duration)
+			}
+
+			if resizedFile != "" {
+				resizedFile = s.imageDir + "/" + resizedFile
+			}
+
 			session, _ := s.cookieStore.Get(r, lepusSessionName)
 
-			session.Values[imagFileSessionValKey] = imageFile
+			session.Values[imagFileSessionValKey] = resizedFile
 			session.Values[uploadInfoTextValKey] = infoText
 			session.Values[uploadInfoTypeValKey] = infoType
 
@@ -188,20 +201,20 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 				s.serverError(w, errors.New("Expect uploadInfoTypeValKey values in cookie but not found"))
 				return
 			}
-			imageFile, ok := session.Values[imagFileSessionValKey].(string)
+			resizedFile, ok := session.Values[imagFileSessionValKey].(string)
 			if !ok {
 				s.serverError(w, errors.New("Expect imagFileSessionValKey values in cookie but not found"))
 				return
 			}
 
 			data := struct {
-				InfoText  string
-				InfoType  string
-				ImageFile string
+				InfoText    string
+				InfoType    string
+				ResizedFile string
 			}{
-				InfoText:  infoText,
-				InfoType:  infoType,
-				ImageFile: imageFile,
+				InfoText:    infoText,
+				InfoType:    infoType,
+				ResizedFile: resizedFile,
 			}
 			s.Render(w, "where2", data)
 
