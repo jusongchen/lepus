@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // Store may be exported as app grow
@@ -38,8 +38,7 @@ func initSqliteStore(db *sql.DB) error {
 	
 	create table if not exists alumnus (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), selected_educators text, signup_datetime text);
 	
-	create table if not exists media (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), media_type text, filename text, filesize integer, origin_filename text, upload_datetime text, filedata blob);
-	
+	create table if not exists media (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), media_type text, filename text, filesize integer, origin_filename text, upload_datetime text,upload_duration real, filedata blob);
 	
 	create table if not exists media_educator(
 	media_id integer, 
@@ -52,7 +51,7 @@ func initSqliteStore(db *sql.DB) error {
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to initialite sqlite DB")
+		log.WithError(err).Fatal("Failed to initialite sqlite DB")
 		return err
 	}
 	return nil
@@ -64,28 +63,88 @@ func (s *lepus) SaveSignup(prof AlumnusProfile) (int64, error) {
 	sqltext := `insert into alumnus(alumnus_name ,alumnus_gradyear, selected_educators,signup_datetime) values (?,?,?,?)`
 	stmt, err := s.store.DB.Prepare(sqltext)
 	if err != nil {
-		logrus.WithError(err).Errorf("sql prepare failed:%v", sqltext)
+		log.WithError(err).Errorf("sql prepare failed:%v", sqltext)
 		return 0, err
 	}
 
 	educatorsJSON, err := json.Marshal(prof.SelectedEducators)
 	if err != nil {
-		logrus.WithError(err).Errorf("Json marshal failed:%v", prof.SelectedEducators)
+		log.WithError(err).Errorf("Json marshal failed:%v", prof.SelectedEducators)
 		return 0, err
 	}
 
 	result, err := stmt.Exec(prof.Name, prof.GradYear, string(educatorsJSON), time.Now().Format(time.RFC3339))
 	if err != nil {
-		logrus.WithError(err).Errorf("sql execution failed:%v", sqltext)
+		log.WithError(err).Errorf("sql execution failed:%v", sqltext)
 		return 0, err
 	}
 	alumnusID, err := result.LastInsertId()
 	if err != nil {
-		logrus.WithError(err).Errorf("sql execution could not get LastInsertID:%v", sqltext)
+		log.WithError(err).Errorf("sql execution could not get LastInsertID:%v", sqltext)
 		return 0, err
 	}
 
-	logrus.Infof("Saved sigup info. new alumnus ID:%v, signup:%+v", alumnusID, prof)
+	log.Infof("Saved sigup info. new alumnus ID:%v, signup:%+v", alumnusID, prof)
 
 	return alumnusID, nil
+}
+
+// SaveSignup return alumnusID if suceed
+func (s *lepus) SaveUpload(u *UploadReport) error {
+
+	tx, err := s.store.DB.Begin()
+	if err != nil {
+		log.WithError(err).Errorf("DB begin txn fail!")
+		return err
+	}
+
+	sqltext := `insert into media 
+		(alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,filedata)       
+		values (?,?,?,?,?,?,?,?,?)`
+	stmt, err := s.store.DB.Prepare(sqltext)
+	if err != nil {
+		log.WithError(err).Errorf("sql prepare failed:%v", sqltext)
+		return err
+	}
+
+	result, err := stmt.Exec(u.Name, u.GradYear, u.MediaType, u.saveAsName, u.FileSize, u.OriginName, u.EndTime.Format(time.RFC3339), u.Duration.Seconds(), u.filedata)
+	if err != nil {
+		log.WithError(err).Errorf("sql execution failed:%v", sqltext)
+		return err
+	}
+
+	mediaID, err := result.LastInsertId()
+	if err != nil {
+		log.WithError(err).Errorf("sql execution could not get LastInsertID:%v", sqltext)
+		return err
+	}
+
+	sqltext = `insert into media_educator (media_id , educator_id ) values (?,?)`
+	stmt, err = s.store.DB.Prepare(sqltext)
+	if err != nil {
+		log.WithError(err).Errorf("sql prepare failed:%v", sqltext)
+		return err
+	}
+
+	for _, name := range u.SelectedEducators {
+		_, err := stmt.Exec(mediaID, name)
+		if err != nil {
+			log.WithError(err).Errorf("sql execution failed:%v", sqltext)
+			return err
+		}
+	}
+
+	tx.Commit()
+	log.WithFields(log.Fields{
+		"mediaID":         mediaID,
+		"name":            u.Name,
+		"gradyear":        u.GradYear,
+		"mediatype":       u.MediaType,
+		"filename":        u.saveAsName,
+		"size":            u.FileSize,
+		"originname":      u.OriginName,
+		"upload_duration": u.Duration.Seconds(),
+	}).Info("media saved")
+
+	return nil
 }

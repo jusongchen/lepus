@@ -12,7 +12,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/h2non/filetype"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func randToken(len int) string {
@@ -26,7 +26,7 @@ func resizeImage(srcFile, dstFile string) error {
 	srcImage, err := imaging.Open(srcFile)
 
 	if err != nil {
-		logrus.WithError(err).Error("resizeImage():open image failed")
+		log.WithError(err).Error("resizeImage():open image failed")
 		return err
 	}
 
@@ -34,24 +34,12 @@ func resizeImage(srcFile, dstFile string) error {
 
 	err = imaging.Save(dstImage128, dstFile)
 	if err != nil {
-		logrus.WithError(err).Error("resizeImage():save image failed")
+		log.WithError(err).Error("resizeImage():save image failed")
 		return err
 	}
-	logrus.Infof("resizeImage():save image file to %s", dstFile)
+	log.Infof("resizeImage():save image file to %s", dstFile)
 	return nil
 
-}
-
-// UploadReport is a struct to describe upload info
-type UploadReport struct {
-	startTime         time.Time
-	endTime           time.Time
-	duration          time.Duration
-	httpContentLength int64
-	originName        string
-	saveAsName        string
-	fileSize          int64
-	resizedFilename   string
 }
 
 //uploadFile returns resized image file and error
@@ -60,20 +48,25 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 	var err error
 	rpt := &UploadReport{}
 
-	rpt.startTime = time.Now()
+	defer func() {
+
+		log.WithError(err).WithFields(log.Fields{
+			"EndTime":       rpt.EndTime.Format(time.RFC3339),
+			"duration":      rpt.Duration,
+			"contenSize":    rpt.ContentLength,
+			"orginFilename": rpt.OriginName,
+			"saveAsFile":    rpt.saveAsName,
+			"fileSize":      rpt.FileSize,
+		}).Info("upload info")
+	}()
+
+	rpt.StartTime = time.Now()
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	err = r.ParseMultipartForm(maxUploadSize)
-	rpt.endTime = time.Now()
-	rpt.duration = rpt.endTime.Sub(rpt.startTime)
-	rpt.httpContentLength = r.ContentLength
-
-	logrus.WithError(err).WithFields(logrus.Fields{
-		"endTime":            rpt.endTime.Format(time.RFC3339),
-		"duration":           rpt.duration,
-		"size":               r.ContentLength,
-		"rate(bytes/second)": float64(r.ContentLength) / rpt.duration.Seconds(),
-	}).Info("file upload completed")
+	rpt.EndTime = time.Now()
+	rpt.Duration = rpt.EndTime.Sub(rpt.StartTime)
+	rpt.ContentLength = r.ContentLength
 
 	if err != nil {
 		// renderError(w, msg,: http.StatusBadRequest)
@@ -86,6 +79,8 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 		err = fmt.Errorf("内部错误，无法读取上传文件:%v", err)
 		return rpt, err
 	}
+	rpt.OriginName = fileHeader.Filename
+	rpt.FileSize = fileHeader.Size
 
 	defer file.Close()
 	fileBytes, err := ioutil.ReadAll(file)
@@ -96,8 +91,11 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 
 	fileExtensions := []string{"jpg", "png", "gif", "webp", "cr2", "tif", "bmp", "heif", "jxr", "psd", "ico", "mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "mpg", "flv"}
 
-	isImage := filetype.IsImage(fileBytes)
-	if !(isImage || filetype.IsVideo(fileBytes) || filetype.IsAudio(fileBytes)) {
+	if filetype.IsImage(fileBytes) {
+		rpt.MediaType = imageMedia
+	} else if filetype.IsVideo(fileBytes) {
+		rpt.MediaType = videoMedia
+	} else {
 		err = fmt.Errorf("无法识别上传文件的格式,目前支持的文件格式:\n%v\n请将相片或视频转换成支持的格式再上传", strings.Join(fileExtensions, " "))
 		return rpt, err
 	}
@@ -124,17 +122,16 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 		return rpt, err
 	}
 
-	rpt.originName = fileHeader.Filename
 	rpt.saveAsName = fileName
-	rpt.fileSize = fileHeader.Size
+	rpt.filedata = fileBytes
 
-	if !isImage {
+	if rpt.MediaType != imageMedia {
 		return rpt, err
 	}
 
 	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
 		// just log error, we may get an error during resize the picture as we do not handle all formats
-		logrus.WithError(err).WithField("filename", newPath).Error("resize image failed")
+		log.WithError(err).WithField("filename", newPath).Error("resize image failed")
 		//do not return error here, as even resize failed, we still move forward
 		err = nil
 		return rpt, err

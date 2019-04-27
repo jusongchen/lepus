@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type tempMap map[string]*template.Template
@@ -19,17 +19,17 @@ func (s *lepus) initTemplates(viewPath string) error {
 
 	viewFiles, err := filepath.Glob(viewFilePath)
 	if err != nil {
-		logrus.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
+		log.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
 	}
 
 	//get all layout files
 	layoutFiles, err := filepath.Glob(layoutFilePath)
 	if err != nil {
-		logrus.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
+		log.WithError(err).Fatalf("filepath.Glob failed:%s", viewFilePath)
 	}
 
 	if layoutFiles == nil {
-		logrus.Fatalf("Glob search did not find any layout file:%s", layoutFilePath)
+		log.Fatalf("Glob search did not find any layout file:%s", layoutFilePath)
 	}
 
 	s.tempMap = map[string]*template.Template{}
@@ -38,10 +38,10 @@ func (s *lepus) initTemplates(viewPath string) error {
 		//verify template exiits
 		_, err := os.Stat(viewFile)
 		if os.IsNotExist(err) {
-			logrus.Fatalf("html template file dose not exist : %s", viewFile)
+			log.Fatalf("html template file dose not exist : %s", viewFile)
 
 		} else if err != nil {
-			logrus.Fatalf("os error while check template file i %s:\n%v", viewFile, err)
+			log.Fatalf("os error while check template file i %s:\n%v", viewFile, err)
 		}
 
 		// file exists
@@ -50,16 +50,16 @@ func (s *lepus) initTemplates(viewPath string) error {
 		t, err := template.ParseFiles(files...)
 
 		if t == nil {
-			logrus.Fatalf("Did not find any template file matches:%s", files)
+			log.Fatalf("Did not find any template file matches:%s", files)
 		}
 		if err != nil {
-			logrus.Fatalf("parse template failed:%s", files)
+			log.Fatalf("parse template failed:%s", files)
 		}
 
 		_, filename := filepath.Split(viewFile)
 		s.tempMap[strings.TrimSuffix(filename, filepath.Ext(filename))] = t
 	}
-	logrus.Info("Template init completed.")
+	log.Info("Template init completed.")
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (s *lepus) initTemplates(viewPath string) error {
 func (s *lepus) Render(w http.ResponseWriter, urlPath string, data interface{}) error {
 	t := s.tempMap[urlPath]
 	if t == nil {
-		logrus.Errorf("cannot find template for url %s", urlPath)
+		log.Errorf("cannot find template for url %s", urlPath)
 	}
 	// t.ExecuteTemplate(os.Stderr, "bootstrap", data)
 	return t.ExecuteTemplate(w, "bootstrap", data)

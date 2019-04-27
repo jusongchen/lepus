@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -14,7 +13,7 @@ import (
 
 	"github.com/jusongchen/lepus/app"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const defaultPort = "8080"
@@ -26,7 +25,7 @@ const sqliteFile = "lepus.v1.DB"
 const sessionKeyEnvName = "LEPUS_SESSION_KEY"
 
 func main() {
-	logrus.Infof("Lepus version:%s", version.Release)
+	log.Infof("Lepus version:%s", version.Release)
 	var err error
 
 	lepusHomeDir := os.Getenv("LEPUS_HOME")
@@ -34,19 +33,19 @@ func main() {
 
 		lepusHomeDir, err = filepath.Abs(filepath.Dir(os.Args[0]))
 		if err != nil {
-			logrus.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 
-	logrus.Infof("Lepus home dir:%s", lepusHomeDir)
+	log.Infof("Lepus home dir:%s", lepusHomeDir)
 
 	if err := os.Chdir(lepusHomeDir); err != nil {
 
-		logrus.WithError(err).Fatalf("Chdir to %v failed", lepusHomeDir)
+		log.WithError(err).Fatalf("Chdir to %v failed", lepusHomeDir)
 	}
 
 	if _, err := os.Stat(dirForStatic); os.IsNotExist(err) {
-		logrus.Fatalf("Directory for static web content does not exist:%s", dirForStatic)
+		log.Fatalf("Directory for static web content does not exist:%s", dirForStatic)
 	}
 
 	flag.Usage = func() {
@@ -59,7 +58,7 @@ func main() {
 
 	sessionKey := os.Getenv(sessionKeyEnvName)
 	if len(sessionKey) == 0 {
-		logrus.Fatalf("Environment Variable %v not found.", sessionKeyEnvName)
+		log.Fatalf("Environment Variable %v not found.", sessionKeyEnvName)
 	}
 
 	educatorNames := []string{"蔡春耀", "蔡温榄", "蔡小华", "曹世才", "曾敏毅", "沈淑耀", "陈本培",
@@ -76,11 +75,11 @@ func main() {
 		"陈建尧", "陈振城", "张庆明", "黄光全", "张丽贞", "林成键", "阮珠珍", "赖汾扬", "林为炎", "魏忠麟",
 		"陈冠民", "林惠琛"}
 
-	db, err := sql.Open("sqlite3", sqliteFile)
+	db, err := sql.Open("sqlite3", filepath.Join(receiveDir, sqliteFile))
 	if err != nil {
 		log.Fatalf("Faile top open sqlite3 DB:%v", err)
 	}
-	logrus.Infof("Lepus DB file:%s", sqliteFile)
+	log.Infof("Lepus DB file:%s", sqliteFile)
 
 	app.Start(db,
 		sessionKey,

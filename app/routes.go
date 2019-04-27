@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/jusongchen/lepus/version"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const lepusSessionName = "alumnus_profile"
@@ -23,9 +23,9 @@ const uploadInfoTypeValKey = "infoType"
 func (s *lepus) routes(staticDir string) {
 
 	// A good base middleware stack
-	logger := logrus.New()
-	// logger.Formatter = &logrus.JSONFormatter{
-	logger.Formatter = &logrus.TextFormatter{
+	logger := log.New()
+	// logger.Formatter = &log.JSONFormatter{
+	logger.Formatter = &log.TextFormatter{
 		// disable, as we set our own
 		DisableTimestamp: true,
 	}
@@ -59,7 +59,7 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 			// now try to get profile from Form
 			profile, err := newUserProfileFromForm(w, r)
 			if err != nil || profile == nil {
-				logrus.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
+				log.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
 				s.serverErrorWithMsg(w, err, "Internal Error:Cannot get User Profile")
 				return
 			}
@@ -84,7 +84,6 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 func (s *lepus) getUserProfile(w http.ResponseWriter, r *http.Request) *AlumnusProfile {
 
 	session, _ := s.cookieStore.Get(r, lepusSessionName)
-	// logrus.Infof("session values %v", session.Values)
 
 	name, ok := session.Values[nameSessionValKey].(string)
 	if !ok {
@@ -139,16 +138,28 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 			var err error
 
+			profile := s.getUserProfile(w, r)
+			if profile == nil {
+				return
+			}
+
+			if err != nil {
+				s.serverErrorWithMsg(w, err, fmt.Sprintf("cannot get user profile at %v", r.URL))
+			}
 			// resizedFile is a filename within public/images folder
 			rpt, err := s.uploadFile(w, r)
-			resizedFile := rpt.resizedFilename
+
+			rpt.AlumnusProfile = *profile
 
 			if err == nil {
-				logrus.Infof("Upload Info:%+v", *rpt)
-			} else {
-				logrus.WithError(err).Errorf("Upload Info:%v", rpt)
-
+				err1 := s.SaveUpload(rpt)
+				if err1 != nil {
+					s.serverErrorWithMsg(w, err1, fmt.Sprintf("Internal DB Error"))
+					// continue to ?
+				}
 			}
+
+			resizedFile := rpt.resizedFilename
 
 			infoText := "上传成功!"
 			infoType := "success"
@@ -157,8 +168,8 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				infoType = "danger"
 			}
 
-			if rpt.fileSize != 0 {
-				infoText += fmt.Sprintf(" 文件大小:%.2f MB 上传用时:%v", float64(rpt.fileSize)/1024/1024, rpt.duration)
+			if rpt.FileSize != 0 {
+				infoText += fmt.Sprintf(" 文件大小:%.2f MB 上传用时:%v", float64(rpt.FileSize)/1024/1024, rpt.Duration)
 			}
 
 			if resizedFile != "" {
@@ -251,7 +262,7 @@ func (s *lepus) handlerHome() http.HandlerFunc {
 
 		body, err := json.Marshal(info)
 		if err != nil {
-			logrus.WithError(err).Errorf("Could not encode data:%v", info)
+			log.WithError(err).Errorf("Could not encode data:%v", info)
 			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}

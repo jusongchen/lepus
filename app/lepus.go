@@ -4,6 +4,9 @@ package app
 
 import "time"
 
+const imageMedia = "image"
+const videoMedia = "video"
+
 // Alumnus exposed as this may be referred from other pkg as app grow
 type Alumnus struct {
 	Name     string
@@ -30,4 +33,19 @@ type Media struct {
 type AlumnusProfile struct {
 	Alumnus
 	SelectedEducators []string
+}
+
+// UploadReport is a struct to describe upload info
+type UploadReport struct {
+	AlumnusProfile
+	StartTime       time.Time
+	EndTime         time.Time
+	Duration        time.Duration
+	ContentLength   int64
+	MediaType       string //image, video, audio
+	OriginName      string
+	saveAsName      string
+	FileSize        int64
+	resizedFilename string
+	filedata        []byte
 }

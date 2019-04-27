@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,7 +18,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/jusongchen/lepus/chn"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const maxUploadSize = 200 * 1024 * 1024 //MB
@@ -47,7 +45,8 @@ var s lepus
 //Start starts Lepus server
 func Start(db *sql.DB, sessionKey, addr, lepusHomeDir, staticHomeDir, receiveDir, imageDir, viewPath string, educatorNames []string) {
 
-	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	errorLog := log.New()
+	// .New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	s = lepus{
 		router:        chi.NewRouter(),
@@ -75,7 +74,7 @@ func Start(db *sql.DB, sessionKey, addr, lepusHomeDir, staticHomeDir, receiveDir
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			err1 := os.Mkdir(dir, 0700)
 			if err1 != nil {
-				logrus.Fatalf("Create dir '%s' failed:%s", dir, err1)
+				log.Fatalf("Create dir '%s' failed:%s", dir, err1)
 			}
 		}
 	}
@@ -102,24 +101,24 @@ func Start(db *sql.DB, sessionKey, addr, lepusHomeDir, staticHomeDir, receiveDir
 		err := s.httpSrv.ListenAndServe()
 		if err != nil {
 			shutdown <- struct{}{}
-			logrus.Printf("%v", err)
+			log.Printf("%v", err)
 		}
 	}()
-	logrus.Printf("The service is ready to listen and serve on %s.", s.httpSrv.Addr)
+	log.Printf("The service is ready to listen and serve on %s.", s.httpSrv.Addr)
 
 	select {
 	case killSignal := <-interrupt:
 		switch killSignal {
 		case os.Interrupt:
-			logrus.Print("Got SIGINT...")
+			log.Print("Got SIGINT...")
 		case syscall.SIGTERM:
-			logrus.Print("Got SIGTERM...")
+			log.Print("Got SIGTERM...")
 		}
 	case <-shutdown:
-		logrus.Printf("Get server shutdown request")
+		log.Printf("Get server shutdown request")
 	}
 
-	logrus.Print("The service is shutting down...")
+	log.Print("The service is shutting down...")
 	s.httpSrv.Shutdown(context.Background())
 }
 
@@ -135,10 +134,9 @@ func (s *lepus) serverErrorWithMsg(w http.ResponseWriter, err error, msg string)
 
 //serverError logs err, then sends a generic 500 Internal Server Error response to the user.
 func (s *lepus) serverError(w http.ResponseWriter, err error) {
-	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
-	s.errorLog.Output(2, trace)
+	s.errorLog.Error(err.Error() + "\n" + string(debug.Stack()))
 
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	http.Error(w, "内部错误:"+err.Error(), http.StatusInternalServerError)
 }
 
 // The clientError helper sends a specific status code and corresponding description
