@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/jusongchen/lepus/version"
@@ -45,6 +46,7 @@ func (s *lepus) routes(staticDir string) {
 	r.Handle("/where2", s.where2Handler())
 	r.Handle("/sponsor", s.sponsorHandler())
 	r.Handle("/signup", s.signupHandler())
+	r.Handle("/listmedia", s.listmediaHandler())
 
 }
 
@@ -123,15 +125,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				return
 			}
 
-			data := struct {
-				EducatorNames []string
-				SessionID     string
-			}{
-				// EducatorNames: profile.SelectedEducators,
-				EducatorNames: profile.SelectedEducators,
-				SessionID:     "profileJSON",
-				// SessionID:     profileJSON,
-			}
+			data := struct{ EducatorNames []string }{EducatorNames: profile.SelectedEducators}
 			s.Render(w, "selectphoto", data)
 
 		case "POST":
@@ -150,6 +144,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			rpt, err := s.uploadFile(w, r)
 
 			rpt.AlumnusProfile = *profile
+			rpt.forEducators = r.Form["educators"]
 
 			if err == nil {
 				err1 := s.SaveUpload(rpt)
@@ -268,5 +263,32 @@ func (s *lepus) handlerHome() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(body)
+	})
+}
+
+func (s *lepus) listmediaHandler() http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		switch r.Method {
+		case "GET":
+			to := time.Now()
+			//TODO, support time ranged search
+			from := to
+			m, err := s.getUploadedMedia(from, to)
+			if err != nil {
+				s.serverError(w, err)
+			}
+
+			data := struct {
+				MediaFiles []Media
+			}{
+				MediaFiles: m,
+			}
+
+			s.Render(w, "listmedia", data)
+		default:
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
+		}
 	})
 }

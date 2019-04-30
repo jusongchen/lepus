@@ -1,7 +1,8 @@
 
-* disable submit when upload
+* search uploaded
 * image rotated
 * DB support
+* tls?
 
 
 

@@ -4,8 +4,9 @@ package app_test
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
+	// "database/sql"
+	sql "github.com/jmoiron/sqlx"
 	"io"
 	"io/ioutil"
 	"log"

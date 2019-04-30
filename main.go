@@ -3,9 +3,10 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	"fmt"
+	// "database/sql"
+	sql "github.com/jmoiron/sqlx"
 	"os"
 	"path/filepath"
 

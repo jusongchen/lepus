@@ -1,8 +1,9 @@
 package app
 
 import (
-	"database/sql"
 	"encoding/json"
+	"fmt"
+	sql "github.com/jmoiron/sqlx"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -10,20 +11,12 @@ import (
 
 // Store may be exported as app grow
 type Store interface {
-	SaveSignup(alumnus *Alumnus, selectedEducators []Educators) error
+	SaveSignup(alumnus *Alumnus, selectedEducators []Educator) error
 }
 
 type dbStore struct {
 	DB *sql.DB
 }
-
-// create table if not exists alumnus_educator (
-// alumnus_id integer,
-// educator_id integer,
-// primary key (alumnus_id,educator_id),
-// FOREIGN key (alumnus_id) REFERENCES alumnus(id),
-// FOREIGN key (educator_id) REFERENCES educator(id)
-// );
 
 func initSqliteStore(db *sql.DB) error {
 
@@ -34,18 +27,16 @@ func initSqliteStore(db *sql.DB) error {
 	delete from t1;
 	insert into t1 (name) values ('陈居松');
 		
-	create TABLE if not exists educator(id INTEGER PRIMARY KEY ,name text,subject text);
 	
 	create table if not exists alumnus (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), selected_educators text, signup_datetime text);
 	
 	create table if not exists media (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), media_type text, filename text, filesize integer, origin_filename text, upload_datetime text,upload_duration real, real_ip text,filedata blob);
 	
 	create table if not exists media_educator(
-	media_id integer, 
-	educator_id integer,
-	primary key (media_id,educator_id),
-	FOREIGN key (media_id) REFERENCES media(id),
-	FOREIGN key (educator_id) REFERENCES educator(id)
+		media_id integer, 
+		edu_name text,
+		primary key (media_id,edu_name),
+		FOREIGN key (media_id) REFERENCES media(id)
 	);
 	`
 
@@ -119,15 +110,16 @@ func (s *lepus) SaveUpload(u *UploadReport) error {
 		return err
 	}
 
-	sqltext = `insert into media_educator (media_id , educator_id ) values (?,?)`
+	// insert the educator if not exists
+
+	sqltext = `insert into media_educator (media_id , edu_name ) values (?,?)`
 	stmt, err = s.store.DB.Prepare(sqltext)
 	if err != nil {
 		log.WithError(err).Errorf("sql prepare failed:%v", sqltext)
 		return err
 	}
-
-	for _, name := range u.SelectedEducators {
-		_, err := stmt.Exec(mediaID, name)
+	for _, n := range u.forEducators {
+		_, err := stmt.Exec(mediaID, n)
 		if err != nil {
 			log.WithError(err).Errorf("sql execution failed:%v", sqltext)
 			return err
@@ -147,4 +139,36 @@ func (s *lepus) SaveUpload(u *UploadReport) error {
 	}).Info("media saved")
 
 	return nil
+}
+
+// SaveSignup return alumnusID if suceed
+func (s *lepus) getUploadedMedia(from time.Time, to time.Time) ([]Media, error) {
+
+	media := []Media{}
+
+	sqltext := `select id,alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,real_ip 
+	from media`
+
+	// result, err := stmt.Exec(prof.Name, prof.GradYear, string(educatorsJSON), time.Now().Format(time.RFC3339))
+
+	err := s.store.DB.Select(&media, sqltext)
+	if err != nil {
+		log.WithError(err).Errorf("sql execution failed:%v", sqltext)
+		return nil, err
+	}
+
+	for i := range media {
+
+		eduNames := []string{}
+		err := s.store.DB.Select(&eduNames, "select edu_name from media_educator where media_id=?", media[i].MediaID)
+		if err != nil {
+			log.WithError(err).Errorf("sql execution failed:%v", sqltext)
+			return nil, err
+		}
+		media[i].ForEducators = eduNames
+		media[i].FileSizeMb = fmt.Sprintf("%.1f", float64(media[i].FileSize)/1024/1024)
+		media[i].UploadRate = float64(media[i].FileSize) / 1024 / 1024 / media[i].Duration
+	}
+
+	return media, nil
 }
