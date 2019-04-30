@@ -38,7 +38,7 @@ func initSqliteStore(db *sql.DB) error {
 	
 	create table if not exists alumnus (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), selected_educators text, signup_datetime text);
 	
-	create table if not exists media (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), media_type text, filename text, filesize integer, origin_filename text, upload_datetime text,upload_duration real, filedata blob);
+	create table if not exists media (id INTEGER PRIMARY KEY,alumnus_name text,alumnus_gradyear char(2), media_type text, filename text, filesize integer, origin_filename text, upload_datetime text,upload_duration real, real_ip text,filedata blob);
 	
 	create table if not exists media_educator(
 	media_id integer, 
@@ -99,15 +99,15 @@ func (s *lepus) SaveUpload(u *UploadReport) error {
 	}
 
 	sqltext := `insert into media 
-		(alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,filedata)       
-		values (?,?,?,?,?,?,?,?,?)`
+		(alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,real_ip,filedata)       
+		values (?,?,?,?,?,?,?,?,?,?)`
 	stmt, err := s.store.DB.Prepare(sqltext)
 	if err != nil {
 		log.WithError(err).Errorf("sql prepare failed:%v", sqltext)
 		return err
 	}
 
-	result, err := stmt.Exec(u.Name, u.GradYear, u.MediaType, u.saveAsName, u.FileSize, u.OriginName, u.EndTime.Format(time.RFC3339), u.Duration.Seconds(), u.filedata)
+	result, err := stmt.Exec(u.Name, u.GradYear, u.MediaType, u.saveAsName, u.FileSize, u.OriginName, u.EndTime.Format(time.RFC3339), u.Duration.Seconds(), u.RealIP, u.filedata)
 	if err != nil {
 		log.WithError(err).Errorf("sql execution failed:%v", sqltext)
 		return err

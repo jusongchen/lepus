@@ -19,15 +19,15 @@ type Educators struct {
 	Major string
 }
 
-// Media exported
-type Media struct {
-	MediaType      string
-	savedAsFile    string
-	OriginFilename string
-	Filesize       int
-	UploadTime     time.Time
-	Data           []byte
-}
+// // Media exported
+// type Media struct {
+// 	MediaType      string
+// 	savedAsFile    string
+// 	OriginFilename string
+// 	Filesize       int
+// 	UploadTime     time.Time
+// 	Data           []byte
+// }
 
 // AlumnusProfile exposed
 type AlumnusProfile struct {
@@ -47,5 +47,20 @@ type UploadReport struct {
 	saveAsName      string
 	FileSize        int64
 	resizedFilename string
+	RealIP          string
 	filedata        []byte
+}
+
+// Media is a struct to describe uploaded file
+type Media struct {
+	MediaID         int64
+	AlumnusName     string
+	AlumnusGradYear string
+	UploadedTime    time.Time
+	Duration        time.Duration
+	MediaType       string //image, video, audio
+	OriginName      string
+	saveAsName      string
+	FileSize        int64
+	// filedata        []byte
 }

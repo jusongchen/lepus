@@ -60,6 +60,7 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 		}).Info("upload info")
 	}()
 
+	rpt.RealIP = r.RemoteAddr
 	rpt.StartTime = time.Now()
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
