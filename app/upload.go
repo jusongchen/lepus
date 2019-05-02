@@ -3,10 +3,9 @@ package app
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,16 +20,16 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func resizeImage(srcFile, dstFile string) error {
+func resizeImage(src io.Reader, dstFile string) error {
 
-	srcImage, err := imaging.Open(srcFile)
+	srcImage, err := imaging.Decode(src)
 
 	if err != nil {
-		log.WithError(err).Error("resizeImage():open image failed")
+		log.WithError(err).Error("imaging.Decode() failed")
 		return err
 	}
 
-	dstImage128 := imaging.Resize(srcImage, 128, 128, imaging.Lanczos)
+	dstImage128 := imaging.Resize(srcImage, 256, 0, imaging.Lanczos)
 
 	err = imaging.Save(dstImage128, dstFile)
 	if err != nil {
@@ -109,19 +108,19 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 
 	fileName := randToken(12) + "." + kind.Extension
 
-	newPath := filepath.Join(s.receiveDir, fileName)
+	// newPath := filepath.Join(s.receiveDir, fileName)
 
-	// write file
-	newFile, err := os.Create(newPath)
-	if err != nil {
-		err = fmt.Errorf("内部错误:create file failed:%v", err)
-		return rpt, err
-	}
-	defer newFile.Close() // idempotent, okay to call twice
-	if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
-		err = fmt.Errorf("内部错误:Write file failed:%v", err)
-		return rpt, err
-	}
+	// // write file
+	// newFile, err := os.Create(newPath)
+	// if err != nil {
+	// 	err = fmt.Errorf("内部错误:create file failed:%v", err)
+	// 	return rpt, err
+	// }
+	// defer newFile.Close() // idempotent, okay to call twice
+	// if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
+	// 	err = fmt.Errorf("内部错误:Write file failed:%v", err)
+	// 	return rpt, err
+	// }
 
 	rpt.saveAsName = fileName
 	rpt.filedata = fileBytes

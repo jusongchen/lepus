@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -147,11 +148,10 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				rpt.forEducators = r.Form["educators"]
 				if rpt.MediaType == imageMedia {
 					fileName := rpt.saveAsName
-					newPath := filepath.Join(s.receiveDir, fileName)
 
-					if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
+					if err = resizeImage(bytes.NewReader(rpt.filedata), filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
 						// just log error, we may get an error during resize the picture as we do not handle all formats
-						log.WithError(err).WithField("filename", newPath).Error("resize image failed")
+						log.WithError(err).Error("resize image failed")
 						//do not return error here, as even resize failed, we still move forward
 					} else {
 						rpt.resizedFilename = fileName

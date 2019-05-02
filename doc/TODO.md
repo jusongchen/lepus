@@ -1,6 +1,5 @@
 
-* search uploaded
 * image rotated
-* DB support
+* export files
 * tls?
 
