@@ -84,6 +84,30 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 	})
 }
 
+func newUserProfileFromForm(w http.ResponseWriter, r *http.Request) (*AlumnusProfile, error) {
+	r.ParseForm()
+	log.Errorf("form :%+v\n", r.Form)
+	// session not found
+	if r.Form["name"] == nil || r.Form["gradYear"] == nil || r.Form["educators"] == nil {
+		return nil, fmt.Errorf("Cannot get sessionID for URL:%v", r.URL)
+	}
+
+	profile := AlumnusProfile{
+		Alumnus: Alumnus{
+			Name:     r.Form["name"][0],
+			GradYear: r.Form["gradYear"][0],
+		},
+		SelectedEducators: r.Form["educators"],
+	}
+
+	_, err := s.SaveSignup(profile)
+	if err != nil {
+		log.WithError(err).WithField("profile", profile).Error("Save profile to DB failed")
+	}
+	return &profile, err
+
+}
+
 func (s *lepus) getUserProfile(w http.ResponseWriter, r *http.Request) *AlumnusProfile {
 
 	session, _ := s.cookieStore.Get(r, lepusSessionName)
@@ -175,7 +199,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			}
 
 			if rpt.FileSize != 0 {
-				infoText += fmt.Sprintf(" 文件大小:%.2f MB 上传用时:%v", float64(rpt.FileSize)/1024/1024, rpt.Duration)
+				infoText += fmt.Sprintf(" 大小:%.2f MB 用时:%v", float64(rpt.FileSize)/1024/1024, rpt.Duration)
 			}
 
 			if resizedFilename != "" {
@@ -263,7 +287,7 @@ func (s *lepus) handlerHome() http.HandlerFunc {
 			Release   string `json:"release"`
 			Message   string `json:"message"`
 		}{
-			version.BuildTime, version.Commit, version.Release, "Hello Lepus Administrators!",
+			version.BuildTime, version.Commit, version.Release, "Developed by Jusong Chen 陈居松",
 		}
 
 		body, err := json.Marshal(info)

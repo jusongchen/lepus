@@ -18,16 +18,6 @@ type Educator struct {
 	Name string `db:"name"`
 }
 
-// // Media exported
-// type Media struct {
-// 	MediaType      string
-// 	savedAsFile    string
-// 	OriginFilename string
-// 	Filesize       int
-// 	UploadTime     time.Time
-// 	Data           []byte
-// }
-
 // AlumnusProfile exposed
 type AlumnusProfile struct {
 	Alumnus

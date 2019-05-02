@@ -3,6 +3,7 @@ package app
 import (
 	"crypto/rand"
 	"fmt"
+	"image"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,8 +12,57 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/h2non/filetype"
+	"github.com/rwcarlsen/goexif/exif"
 	log "github.com/sirupsen/logrus"
 )
+
+//Decode is image.Decode handling orientation in EXIF tags if exists.
+//Requires io.ReadSeeker instead of io.Reader.
+func Decode(reader io.ReadSeeker) (image.Image, string, error) {
+	img, fmt, err := image.Decode(reader)
+	if err != nil {
+		return img, fmt, err
+	}
+	reader.Seek(0, io.SeekStart)
+	orientation := getOrientation(reader)
+	switch orientation {
+	case "1":
+	case "2":
+		img = imaging.FlipV(img)
+	case "3":
+		img = imaging.Rotate180(img)
+	case "4":
+		img = imaging.Rotate180(imaging.FlipV(img))
+	case "5":
+		img = imaging.Rotate270(imaging.FlipV(img))
+	case "6":
+		img = imaging.Rotate270(img)
+	case "7":
+		img = imaging.Rotate90(imaging.FlipV(img))
+	case "8":
+		img = imaging.Rotate90(img)
+	}
+
+	return img, fmt, err
+}
+
+func getOrientation(reader io.Reader) string {
+	x, err := exif.Decode(reader)
+	if err != nil {
+		return "1"
+	}
+	if x != nil {
+		orient, err := x.Get(exif.Orientation)
+		if err != nil {
+			return "1"
+		}
+		if orient != nil {
+			return orient.String()
+		}
+	}
+
+	return "1"
+}
 
 func randToken(len int) string {
 	b := make([]byte, len)
@@ -20,16 +70,17 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-func resizeImage(src io.Reader, dstFile string) error {
+func resizeImage(src io.ReadSeeker, dstFile string) error {
 
-	srcImage, err := imaging.Decode(src)
+	// srcImage, err := imaging.Decode(src)
+	srcImage, _, err := Decode(src)
 
 	if err != nil {
 		log.WithError(err).Error("imaging.Decode() failed")
 		return err
 	}
 
-	dstImage128 := imaging.Resize(srcImage, 256, 0, imaging.Lanczos)
+	dstImage128 := imaging.Resize(srcImage, 0, 196, imaging.Lanczos)
 
 	err = imaging.Save(dstImage128, dstFile)
 	if err != nil {

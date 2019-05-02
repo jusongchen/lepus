@@ -9,11 +9,11 @@
             <th scope="col">Grad</th>
             <th scope="col">ForEdu</th>
             <th scope="col">Time</th>
-            <th scope="col">Duration</th>
             <th scope="col">OriginFile</th>
+            <th scope="col">Duration</th>
+            <th scope="col">size(Mb)</th>
+            <th scope="col">Mb/Sec</th>
             <th scope="col">IP</th>
-            <th scope="col">fileSize(Mb)</th>
-            <th scope="col">rate(Mb/Sec)</th>
             </tr>
         </thead>
         <tbody>
@@ -24,11 +24,11 @@
             <td>{{.AlumnusGradYear}}</td>
             <td>{{.ForEducators}}</td>
             <td>{{.UploadedTime}}</td>
-            <td class="text-right">{{printf "%.3f" .Duration}}</td>
             <td>{{.OriginName}}</td>
-            <td>{{.RealIP}}</td>
+            <td class="text-right">{{printf "%.3f" .Duration}}</td>
             <td class="text-right">{{.FileSizeMb}}</td>
             <td class="text-right">{{printf "%.1f" .UploadRate}}</td>
+            <td>{{.RealIP}}</td>
           </tr>
         {{end}}
         </tbody>
