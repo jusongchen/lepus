@@ -52,12 +52,22 @@
   
     $(document).ready(function () {
 
+        $('#file1').bind('change', function() {
+
+          console.log('file size:'+ this.files[0].size);
+
+          if (this.files[0].size > 300*1024*1024) {
+            alert('文件太大（已超过300兆字节)' );
+          }
+        });
+
       function inputValid(){
         // validate form fields
         var checkboxes = document.querySelectorAll('input[type="checkbox"]');
         var checkedOne = Array.prototype.slice.call(checkboxes).some(x => x.checked);
         var fileSelected =  (document.getElementById("file1").files.length != 0 )
-        return checkedOne && fileSelected;
+        var fileSizeOK =  (document.getElementById("file1").files[0].size <= 300*1024*1024)
+        return checkedOne && fileSelected && fileSizeOK ;
       }
 
       $('input:not([type="submit"])').change(function(){

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	// "database/sql"
-	sql "github.com/jmoiron/sqlx"
 	"html/template"
 	"net/http"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"syscall"
 	"unicode/utf8"
 
+	sql "github.com/jmoiron/sqlx"
+
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 
@@ -22,7 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const maxUploadSize = 200 * 1024 * 1024 //MB
+const maxUploadSize = 300 * 1024 * 1024 //if need to change, change limit on selectphoto.html as well
 
 //lepus is the server to implement all Lepus features
 type lepus struct {

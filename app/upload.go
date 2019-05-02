@@ -70,8 +70,8 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 	rpt.ContentLength = r.ContentLength
 
 	if err != nil {
-		// renderError(w, msg,: http.StatusBadRequest)
-		err = fmt.Errorf("上传的文件太大（已超过%d兆字节）:%v", maxUploadSize/1024/1024, err)
+
+		s.serverErrorWithMsg(w, err, fmt.Sprintf("上传的文件太大（已超过%d兆字节）", maxUploadSize/1024/1024))
 		return rpt, err
 	}
 
@@ -126,17 +126,5 @@ func (s *lepus) uploadFile(w http.ResponseWriter, r *http.Request) (*UploadRepor
 	rpt.saveAsName = fileName
 	rpt.filedata = fileBytes
 
-	if rpt.MediaType != imageMedia {
-		return rpt, err
-	}
-
-	if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
-		// just log error, we may get an error during resize the picture as we do not handle all formats
-		log.WithError(err).WithField("filename", newPath).Error("resize image failed")
-		//do not return error here, as even resize failed, we still move forward
-		err = nil
-		return rpt, err
-	}
-	rpt.resizedFilename = fileName
 	return rpt, nil
 }

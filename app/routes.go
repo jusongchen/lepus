@@ -17,7 +17,7 @@ const lepusSessionName = "alumnus_profile"
 const eduSessionValKey = "educator_names"
 const nameSessionValKey = "alumnus_name"
 const gradYearSessionValKey = "alumnus_gradyear"
-const imagFileSessionValKey = "resizedFile"
+const imagFileSessionValKey = "resizedFilename"
 const uploadInfoTextValKey = "infoText"
 const uploadInfoTypeValKey = "infoType"
 
@@ -134,19 +134,30 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 
 			profile := s.getUserProfile(w, r)
 			if profile == nil {
+				s.serverErrorWithMsg(w, err, fmt.Sprintf("cannot get user profile at %v", r.URL))
 				return
 			}
 
-			if err != nil {
-				s.serverErrorWithMsg(w, err, fmt.Sprintf("cannot get user profile at %v", r.URL))
-			}
-			// resizedFile is a filename within public/images folder
+			// resizedFilename is a filename within public/images folder
 			rpt, err := s.uploadFile(w, r)
 
-			rpt.AlumnusProfile = *profile
-			rpt.forEducators = r.Form["educators"]
-
+			//file upload succeeded
 			if err == nil {
+				rpt.AlumnusProfile = *profile
+				rpt.forEducators = r.Form["educators"]
+				if rpt.MediaType == imageMedia {
+					fileName := rpt.saveAsName
+					newPath := filepath.Join(s.receiveDir, fileName)
+
+					if err = resizeImage(newPath, filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
+						// just log error, we may get an error during resize the picture as we do not handle all formats
+						log.WithError(err).WithField("filename", newPath).Error("resize image failed")
+						//do not return error here, as even resize failed, we still move forward
+					} else {
+						rpt.resizedFilename = fileName
+					}
+				}
+
 				err1 := s.SaveUpload(rpt)
 				if err1 != nil {
 					s.serverErrorWithMsg(w, err1, fmt.Sprintf("Internal DB Error"))
@@ -154,7 +165,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				}
 			}
 
-			resizedFile := rpt.resizedFilename
+			resizedFilename := rpt.resizedFilename
 
 			infoText := "上传成功!"
 			infoType := "success"
@@ -167,13 +178,13 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				infoText += fmt.Sprintf(" 文件大小:%.2f MB 上传用时:%v", float64(rpt.FileSize)/1024/1024, rpt.Duration)
 			}
 
-			if resizedFile != "" {
-				resizedFile = s.imageDir + "/" + resizedFile
+			if resizedFilename != "" {
+				resizedFilename = s.imageDir + "/" + resizedFilename
 			}
 
 			session, _ := s.cookieStore.Get(r, lepusSessionName)
 
-			session.Values[imagFileSessionValKey] = resizedFile
+			session.Values[imagFileSessionValKey] = resizedFilename
 			session.Values[uploadInfoTextValKey] = infoText
 			session.Values[uploadInfoTypeValKey] = infoType
 
@@ -207,7 +218,7 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 				s.serverError(w, errors.New("Expect uploadInfoTypeValKey values in cookie but not found"))
 				return
 			}
-			resizedFile, ok := session.Values[imagFileSessionValKey].(string)
+			resizedFilename, ok := session.Values[imagFileSessionValKey].(string)
 			if !ok {
 				s.serverError(w, errors.New("Expect imagFileSessionValKey values in cookie but not found"))
 				return
@@ -220,7 +231,7 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 			}{
 				InfoText:    infoText,
 				InfoType:    infoType,
-				ResizedFile: resizedFile,
+				ResizedFile: resizedFilename,
 			}
 			s.Render(w, "where2", data)
 
