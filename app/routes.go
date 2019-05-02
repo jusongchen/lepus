@@ -199,7 +199,7 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 			}
 
 			if rpt.FileSize != 0 {
-				infoText += fmt.Sprintf(" 大小:%.2f MB 用时:%v", float64(rpt.FileSize)/1024/1024, rpt.Duration)
+				infoText += fmt.Sprintf(" 大小:%.2f MB 用时:%.2f秒", float64(rpt.FileSize)/1024/1024, rpt.Duration.Seconds())
 			}
 
 			if resizedFilename != "" {
