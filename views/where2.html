@@ -1,30 +1,28 @@
 {{define "yield"}}
 <div class="container-fluid">
 
-    <div class="row"> &nbsp; </div>
-    <div class="row"> &nbsp; </div>
-    <div class="text-center alert alert-{{.InfoType}} alert-dismissible fade show" id="notification" role="alert" >
-      {{.InfoText}}
-    </div>
-
-    <div class="row"> &nbsp; </div>
-      
-    {{if .ImageFile}}
-    <div class="text-center"> 
-      <img src="{{.ImageFile}}" class="img-fluid" alt="Responsive image">
-    </div>
-    <div class="row"> &nbsp; </div>
-    {{end}}
-
-    <form id="form1"action="/selectphoto" method="get">
-      
-      <div class="text-center"> 
-        <button type="submit" form="form1" value="Submit" class="btn btn-outline-primary btn-lg" >上传下一照片或视频</button>
-      </div>
-    </form>
-    <div class="row"> &nbsp; </div>
+  <div class="row"> &nbsp; </div>
+  <div class="text-center alert alert-{{.InfoType}} alert-dismissible fade show" id="notification" role="alert" >
+    {{.InfoText}}
+  </div>
 
   <div class="row"> &nbsp; </div>
+    
+  {{if .ResizedFile}}
+  <div class="text-center"> 
+    <img src="{{.ResizedFile}}" class="img-fluid" alt="Responsive image">
+  </div>
+  <div class="row"> &nbsp; </div>
+  {{end}}
+
+  <form id="form1"action="/selectphoto" method="get">
+    
+    <div class="text-center"> 
+      <button type="submit" form="form1" value="Submit" class="btn btn-outline-primary btn-lg" >上传下一照片或视频</button>
+    </div>
+  </form>
+  <div class="row"> &nbsp; </div>
+
   
   <form id="form2" action="/sponsor" method="get">
     
@@ -34,14 +32,12 @@
   </form>
 
   <div class="row"> &nbsp; </div>
-  <div class="row"> &nbsp; </div>
   
   <form id="gotoHomePage" action="/" method="get">
     
     <div class="text-center"> 
       <button type="submit" form="gotoHomePage" value="Submit" class="btn btn-outline-primary btn-lg" >回活动首页</button>
     </div>
-    <div class="row"> &nbsp; </div>
     <div class="row"> &nbsp; </div>
     
   </form>

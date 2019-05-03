@@ -8,8 +8,10 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3
 	github.com/h2non/filetype v1.0.8
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/pkg/errors v0.8.1
+	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/sirupsen/logrus v1.4.1
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	golang.org/x/text v0.3.0

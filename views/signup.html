@@ -5,7 +5,8 @@
 
         <div class="form-group">
             <label for="participantName">姓名</label>
-            <input type="text" name="name" class="form-control" id="participantName" aria-describedby="participantNameHelp" placeholder="请用本名" maxlength="4" required>
+            <input type="text" name="name"  class="form-control" id="participantName" aria-describedby="participantNameHelp" placeholder="请用本名" maxlength="4" required
+                   pattern="^[^\\\/:*&?<>|\$]*$" title="姓名中不能有特殊字符">
         </div>
 
 

@@ -1,0 +1,40 @@
+{{define "yield"}}
+<div class="container-fluid">
+
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Grad</th>
+            <th scope="col">ForEdu</th>
+            <th scope="col">Time</th>
+            <th scope="col">OriginFile</th>
+            <th scope="col">Duration</th>
+            <th scope="col">size(Mb)</th>
+            <th scope="col">Mb/Sec</th>
+            <th scope="col">IP</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range .MediaFiles}}
+          <tr>
+            <th scope="row">{{.MediaID}}</th>
+            <td>{{.AlumnusName}}</td>
+            <td>{{.AlumnusGradYear}}</td>
+            <td>{{.ForEducators}}</td>
+            <td>{{.UploadedTime}}</td>
+            <td>{{.OriginName}}</td>
+            <td class="text-right">{{printf "%.3f" .Duration}}</td>
+            <td class="text-right">{{.FileSizeMb}}</td>
+            <td class="text-right">{{printf "%.1f" .UploadRate}}</td>
+            <td>{{.RealIP}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="row"> &nbsp; </div>
+
+{{end}}

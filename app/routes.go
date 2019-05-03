@@ -1,31 +1,33 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/jusongchen/lepus/version"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const lepusSessionName = "alumnus_profile"
 const eduSessionValKey = "educator_names"
 const nameSessionValKey = "alumnus_name"
 const gradYearSessionValKey = "alumnus_gradyear"
-const imagFileSessionValKey = "imageFile"
+const imagFileSessionValKey = "resizedFilename"
 const uploadInfoTextValKey = "infoText"
 const uploadInfoTypeValKey = "infoType"
 
 func (s *lepus) routes(staticDir string) {
 
 	// A good base middleware stack
-	logger := logrus.New()
-	// logger.Formatter = &logrus.JSONFormatter{
-	logger.Formatter = &logrus.TextFormatter{
+	logger := log.New()
+	// logger.Formatter = &log.JSONFormatter{
+	logger.Formatter = &log.TextFormatter{
 		// disable, as we set our own
 		DisableTimestamp: true,
 	}
@@ -45,6 +47,7 @@ func (s *lepus) routes(staticDir string) {
 	r.Handle("/where2", s.where2Handler())
 	r.Handle("/sponsor", s.sponsorHandler())
 	r.Handle("/signup", s.signupHandler())
+	r.Handle("/listmedia", s.listmediaHandler())
 
 }
 
@@ -59,7 +62,7 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 			// now try to get profile from Form
 			profile, err := newUserProfileFromForm(w, r)
 			if err != nil || profile == nil {
-				logrus.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
+				log.WithError(err).Debugf("cannot find profile at URL:%v", r.URL)
 				s.serverErrorWithMsg(w, err, "Internal Error:Cannot get User Profile")
 				return
 			}
@@ -81,10 +84,33 @@ func (s *lepus) signupHandler() http.HandlerFunc {
 	})
 }
 
+func newUserProfileFromForm(w http.ResponseWriter, r *http.Request) (*AlumnusProfile, error) {
+	r.ParseForm()
+	log.Errorf("form :%+v\n", r.Form)
+	// session not found
+	if r.Form["name"] == nil || r.Form["gradYear"] == nil || r.Form["educators"] == nil {
+		return nil, fmt.Errorf("Cannot get sessionID for URL:%v", r.URL)
+	}
+
+	profile := AlumnusProfile{
+		Alumnus: Alumnus{
+			Name:     r.Form["name"][0],
+			GradYear: r.Form["gradYear"][0],
+		},
+		SelectedEducators: r.Form["educators"],
+	}
+
+	_, err := s.SaveSignup(profile)
+	if err != nil {
+		log.WithError(err).WithField("profile", profile).Error("Save profile to DB failed")
+	}
+	return &profile, err
+
+}
+
 func (s *lepus) getUserProfile(w http.ResponseWriter, r *http.Request) *AlumnusProfile {
 
 	session, _ := s.cookieStore.Get(r, lepusSessionName)
-	// logrus.Infof("session values %v", session.Values)
 
 	name, ok := session.Values[nameSessionValKey].(string)
 	if !ok {
@@ -124,37 +150,65 @@ func (s *lepus) selectPhotoHandler() http.HandlerFunc {
 				return
 			}
 
-			data := struct {
-				EducatorNames []string
-				SessionID     string
-			}{
-				// EducatorNames: profile.SelectedEducators,
-				EducatorNames: profile.SelectedEducators,
-				SessionID:     "profileJSON",
-				// SessionID:     profileJSON,
-			}
+			data := struct{ EducatorNames []string }{EducatorNames: profile.SelectedEducators}
 			s.Render(w, "selectphoto", data)
 
 		case "POST":
 
-			var imageFile string
 			var err error
 
-			// imageFile is a filename within public/images folder
-			imageFile, err = s.uploadFile(w, r)
-			if imageFile != "" {
-				imageFile = s.imageDir + "/" + imageFile
+			profile := s.getUserProfile(w, r)
+			if profile == nil {
+				s.serverErrorWithMsg(w, err, fmt.Sprintf("cannot get user profile at %v", r.URL))
+				return
 			}
-			infoText := "上传成功"
+
+			// resizedFilename is a filename within public/images folder
+			rpt, err := s.uploadFile(w, r)
+
+			//file upload succeeded
+			if err == nil {
+				rpt.AlumnusProfile = *profile
+				rpt.forEducators = r.Form["educators"]
+				if rpt.MediaType == imageMedia {
+					fileName := rpt.saveAsName
+
+					if err = resizeImage(bytes.NewReader(rpt.filedata), filepath.Join(s.staticHomeDir, s.imageDir, fileName)); err != nil {
+						// just log error, we may get an error during resize the picture as we do not handle all formats
+						log.WithError(err).Error("resize image failed")
+						//do not return error here, as even resize failed, we still move forward
+					} else {
+						rpt.resizedFilename = fileName
+					}
+				}
+
+				err1 := s.SaveUpload(rpt)
+				if err1 != nil {
+					s.serverErrorWithMsg(w, err1, fmt.Sprintf("Internal DB Error"))
+					// continue to ?
+				}
+			}
+
+			resizedFilename := rpt.resizedFilename
+
+			infoText := "上传成功!"
 			infoType := "success"
 			if err != nil {
 				infoText = err.Error()
 				infoType = "danger"
 			}
 
+			if rpt.FileSize != 0 {
+				infoText += fmt.Sprintf(" 大小:%.2f MB 用时:%.2f秒", float64(rpt.FileSize)/1024/1024, rpt.Duration.Seconds())
+			}
+
+			if resizedFilename != "" {
+				resizedFilename = s.imageDir + "/" + resizedFilename
+			}
+
 			session, _ := s.cookieStore.Get(r, lepusSessionName)
 
-			session.Values[imagFileSessionValKey] = imageFile
+			session.Values[imagFileSessionValKey] = resizedFilename
 			session.Values[uploadInfoTextValKey] = infoText
 			session.Values[uploadInfoTypeValKey] = infoType
 
@@ -188,20 +242,20 @@ func (s *lepus) where2Handler() http.HandlerFunc {
 				s.serverError(w, errors.New("Expect uploadInfoTypeValKey values in cookie but not found"))
 				return
 			}
-			imageFile, ok := session.Values[imagFileSessionValKey].(string)
+			resizedFilename, ok := session.Values[imagFileSessionValKey].(string)
 			if !ok {
 				s.serverError(w, errors.New("Expect imagFileSessionValKey values in cookie but not found"))
 				return
 			}
 
 			data := struct {
-				InfoText  string
-				InfoType  string
-				ImageFile string
+				InfoText    string
+				InfoType    string
+				ResizedFile string
 			}{
-				InfoText:  infoText,
-				InfoType:  infoType,
-				ImageFile: imageFile,
+				InfoText:    infoText,
+				InfoType:    infoType,
+				ResizedFile: resizedFilename,
 			}
 			s.Render(w, "where2", data)
 
@@ -233,16 +287,43 @@ func (s *lepus) handlerHome() http.HandlerFunc {
 			Release   string `json:"release"`
 			Message   string `json:"message"`
 		}{
-			version.BuildTime, version.Commit, version.Release, "Hello Lepus Administrators!",
+			version.BuildTime, version.Commit, version.Release, "Developed by Jusong Chen 陈居松",
 		}
 
 		body, err := json.Marshal(info)
 		if err != nil {
-			logrus.WithError(err).Errorf("Could not encode data:%v", info)
+			log.WithError(err).Errorf("Could not encode data:%v", info)
 			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(body)
+	})
+}
+
+func (s *lepus) listmediaHandler() http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		switch r.Method {
+		case "GET":
+			to := time.Now()
+			//TODO, support time ranged search
+			from := to
+			m, err := s.getUploadedMedia(from, to)
+			if err != nil {
+				s.serverError(w, err)
+			}
+
+			data := struct {
+				MediaFiles []Media
+			}{
+				MediaFiles: m,
+			}
+
+			s.Render(w, "listmedia", data)
+		default:
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
+		}
 	})
 }
