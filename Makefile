@@ -21,7 +21,8 @@ win64:
 	# deliver as zip format as well
 	# return 0 if when no file to rm
 	rm public/images/* || true 
-	7z a  -tzip lepus-win64.zip lepus.exe views/
+
+	7z a  -tzip lepus-win64.zip lepus.exe caddy.exe views/
 	7z a  lepus-win64.zip public/  -xr!*DS_Store
 	mv lepus-win64.zip ./dist-win64/lepus-win64.zip
 
