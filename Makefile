@@ -2,28 +2,28 @@
 PROJECT?=github.com/jusongchen/lepus
 PORT?=8080
 
-RELEASE?=0.3.1
+RELEASE?=0.5.0
 COMMIT?=$(shell git rev-parse --short HEAD)
 BUILD_TIME?=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
-win32:
-	GOOS=windows GOARCH=386 go build \
+win64:
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ go build \
 		-ldflags "-s -w -X ${PROJECT}/version.Release=${RELEASE} \
 		-X ${PROJECT}/version.Commit=${COMMIT} -X ${PROJECT}/version.BuildTime=${BUILD_TIME}" \
 		-o lepus.exe
 
-	7z a lepus-win32.7z lepus.exe views/
+	7z a lepus-win64.7z lepus.exe caddy.exe views/
 	# return 0 if when no file to rm
 	rm public/images/* || true 
-	7z a lepus-win32.7z public/  -xr!*DS_Store
-	mv lepus-win32.7z ./dist-win32/lepus-win32.7z
+	7z a lepus-win64.7z public/  -xr!*DS_Store
+	mv lepus-win64.7z ./dist-win64/lepus-win64.7z
 
 	# deliver as zip format as well
 	# return 0 if when no file to rm
 	rm public/images/* || true 
-	7z a  -tzip lepus-win32.zip lepus.exe views/
-	7z a  lepus-win32.zip public/  -xr!*DS_Store
-	mv lepus-win32.zip ./dist-win32/lepus-win32.zip
+	7z a  -tzip lepus-win64.zip lepus.exe views/
+	7z a  lepus-win64.zip public/  -xr!*DS_Store
+	mv lepus-win64.zip ./dist-win64/lepus-win64.zip
 
 osx:
 	GOOS=darwin GOARCH=amd64 go build \
