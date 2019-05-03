@@ -12,7 +12,7 @@ win64:
 		-X ${PROJECT}/version.Commit=${COMMIT} -X ${PROJECT}/version.BuildTime=${BUILD_TIME}" \
 		-o lepus.exe
 
-	7z a lepus-win64.7z lepus.exe caddy.exe runLepus.bat views/
+	7z a lepus-win64.7z lepus.exe caddy.exe runLepus.bat CaddyFile views/
 	# return 0 if when no file to rm
 	rm public/images/* || true 
 	7z a lepus-win64.7z public/  -xr!*DS_Store
@@ -22,7 +22,7 @@ win64:
 	# return 0 if when no file to rm
 	rm public/images/* || true 
 
-	7z a  -tzip lepus-win64.zip lepus.exe caddy.exe runLepus.bat views/
+	7z a  -tzip lepus-win64.zip lepus.exe caddy.exe runLepus.bat CaddyFile  views/
 	7z a  lepus-win64.zip public/  -xr!*DS_Store
 	mv lepus-win64.zip ./dist-win64/lepus-win64.zip
 
