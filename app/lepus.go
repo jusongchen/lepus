@@ -59,3 +59,13 @@ type Media struct {
 
 	//Filedata        []byte			`db:"filedata"`
 }
+
+//MediaStat may be exported
+type MediaStat struct {
+	TotalUploads      int
+	UploadByGradYear  map[string]int
+	Total2Export      int
+	Total2ExportByEdu map[string]int
+	ExportAttempts    int
+	ExportFails       int
+}

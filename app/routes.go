@@ -316,11 +316,19 @@ func (s *lepus) listMediaHandler() http.HandlerFunc {
 			if err != nil {
 				s.serverError(w, err)
 			}
+			stat := getMediaStat(m)
+			asJSON, err2 := json.Marshal(stat)
+			if err2 != nil {
+				s.serverErrorWithMsg(w, err2, fmt.Sprintf(`Json marshal failed: %+v`, stat))
+
+			}
 
 			data := struct {
 				MediaFiles []Media
+				Stat       string
 			}{
 				MediaFiles: m,
+				Stat:       string(asJSON),
 			}
 
 			s.Render(w, "listmedia", data)
@@ -342,9 +350,9 @@ func saveMediaFile(exp2Dir, educatorName, alumnusName, gradYear, originFileExt s
 	}
 
 	defaultPath := filepath.Join(eduPath, gradYear+"_"+alumnusName)
-	save2Path := defaultPath
-	for _, postfix := range []string{"", "_1", "_2", "_3", "_4", "_5", "_6", "_7", "_8", "_9", "_z"} {
-		save2Path = defaultPath + postfix
+	save2Path := ""
+	for _, postfix := range []string{"", "_1", "_2", "_3", "_4", "_5", "_6", "_7", "_8", "_9", "_10", "_11", "_12", "_13", "_14", "_15", "_16", "_17", "_18", "_19", "_z"} {
+		save2Path = defaultPath + postfix + originFileExt
 		//check if the filename has already been used
 		if _, err := os.Stat(save2Path); os.IsNotExist(err) {
 			break
@@ -355,7 +363,7 @@ func saveMediaFile(exp2Dir, educatorName, alumnusName, gradYear, originFileExt s
 	}
 
 	// write file
-	newFile, err := os.Create(save2Path + originFileExt)
+	newFile, err := os.Create(save2Path)
 	if err != nil {
 		err = fmt.Errorf("内部错误:create file failed:%v", err)
 		return err
@@ -368,6 +376,27 @@ func saveMediaFile(exp2Dir, educatorName, alumnusName, gradYear, originFileExt s
 	log.Infof("media file saved:%s", save2Path)
 
 	return nil
+}
+
+func getMediaStat(media []Media) MediaStat {
+	stat := MediaStat{
+		Total2ExportByEdu: map[string]int{},
+		UploadByGradYear:  map[string]int{},
+	}
+
+	for _, m := range media {
+		//get media data
+		stat.UploadByGradYear[m.AlumnusGradYear]++
+		stat.TotalUploads++
+
+		//save to each Educator's folder
+		for _, eduName := range m.ForEducators {
+			stat.Total2Export++
+			stat.Total2ExportByEdu[eduName]++
+		}
+
+	}
+	return stat
 }
 
 func (s *lepus) exportMediaHandler() http.HandlerFunc {
@@ -395,16 +424,7 @@ func (s *lepus) exportMediaHandler() http.HandlerFunc {
 				s.serverError(w, err)
 			}
 
-			stat := struct {
-				TotalUploads   int
-				EduCount       map[string]int
-				GradYearCount  map[string]int
-				ExportAttempts int
-				ExportFails    int
-			}{
-				EduCount:      map[string]int{},
-				GradYearCount: map[string]int{},
-			}
+			stat := getMediaStat(media)
 
 			for _, m := range media {
 				//get media data
@@ -413,15 +433,12 @@ func (s *lepus) exportMediaHandler() http.HandlerFunc {
 					s.serverError(w, err)
 					return
 				}
-				stat.GradYearCount[m.AlumnusGradYear]++
-				stat.TotalUploads++
 
 				originFileExt := filepath.Ext(m.SaveAsName)
 				//save to each Educator's folder
 				for _, eduName := range m.ForEducators {
-					stat.ExportAttempts++
-					stat.EduCount[eduName]++
 					err := saveMediaFile(exp2dir, eduName, m.AlumnusName, m.AlumnusGradYear, originFileExt, filedata)
+					stat.ExportAttempts++
 					if err != nil {
 						stat.ExportFails++
 						s.serverErrorWithMsg(w, err, fmt.Sprintf(`save media file failed: exp2dir:%v eduName:%v AlumnusName:%v AlumnusGradYear:%v fileExt:%s`, exp2dir, eduName, m.AlumnusName, m.AlumnusGradYear, originFileExt))
