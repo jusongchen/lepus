@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -47,7 +48,8 @@ func (s *lepus) routes(staticDir string) {
 	r.Handle("/where2", s.where2Handler())
 	r.Handle("/sponsor", s.sponsorHandler())
 	r.Handle("/signup", s.signupHandler())
-	r.Handle("/listmedia", s.listmediaHandler())
+	r.Handle("/listmedia", s.listMediaHandler())
+	r.Handle("/exportmedia", s.exportMediaHandler())
 
 }
 
@@ -301,7 +303,7 @@ func (s *lepus) handlerHome() http.HandlerFunc {
 	})
 }
 
-func (s *lepus) listmediaHandler() http.HandlerFunc {
+func (s *lepus) listMediaHandler() http.HandlerFunc {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -322,6 +324,119 @@ func (s *lepus) listmediaHandler() http.HandlerFunc {
 			}
 
 			s.Render(w, "listmedia", data)
+		default:
+			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
+		}
+	})
+}
+
+func saveMediaFile(exp2Dir, educatorName, alumnusName, gradYear, originFileExt string, fileBytes []byte) error {
+
+	eduPath := filepath.Join(exp2Dir, educatorName)
+	if _, err := os.Stat(eduPath); os.IsNotExist(err) {
+		err1 := os.Mkdir(eduPath, 0700)
+		if err1 != nil {
+			err = fmt.Errorf("create export dir for Edu %s failed:%v", educatorName, err)
+			return err
+		}
+	}
+
+	defaultPath := filepath.Join(eduPath, gradYear+"_"+alumnusName)
+	save2Path := defaultPath
+	for _, postfix := range []string{"", "_1", "_2", "_3", "_4", "_5", "_6", "_7", "_8", "_9", "_z"} {
+		save2Path = defaultPath + postfix
+		//check if the filename has already been used
+		if _, err := os.Stat(save2Path); os.IsNotExist(err) {
+			break
+		}
+		if postfix == "_z" {
+			return fmt.Errorf("Too many duplicated uploads for :%v", save2Path)
+		}
+	}
+
+	// write file
+	newFile, err := os.Create(save2Path + originFileExt)
+	if err != nil {
+		err = fmt.Errorf("内部错误:create file failed:%v", err)
+		return err
+	}
+	defer newFile.Close() // idempotent, okay to call twice
+	if _, err = newFile.Write(fileBytes); err != nil || newFile.Close() != nil {
+		err = fmt.Errorf("内部错误:Write file failed:%v", err)
+		return err
+	}
+	log.Infof("media file saved:%s", save2Path)
+
+	return nil
+}
+
+func (s *lepus) exportMediaHandler() http.HandlerFunc {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		switch r.Method {
+
+		case "GET":
+
+			//export to dir
+			exp2dir := filepath.Join(s.export2Dir, time.Now().Format("2006-01-02T15-04-05"))
+			if _, err := os.Stat(exp2dir); os.IsNotExist(err) {
+				err1 := os.MkdirAll(exp2dir, 0700)
+				if err1 != nil {
+					s.serverErrorWithMsg(w, err1, "create export dir failed")
+				}
+
+			}
+			to := time.Now()
+			//TODO, support time ranged search
+			from := to
+			media, err := s.getUploadedMedia(from, to)
+			if err != nil {
+				s.serverError(w, err)
+			}
+
+			stat := struct {
+				TotalUploads   int
+				EduCount       map[string]int
+				GradYearCount  map[string]int
+				ExportAttempts int
+				ExportFails    int
+			}{
+				EduCount:      map[string]int{},
+				GradYearCount: map[string]int{},
+			}
+
+			for _, m := range media {
+				//get media data
+				filedata, err := s.getMediaDataByID(m.MediaID)
+				if err != nil {
+					s.serverError(w, err)
+					return
+				}
+				stat.GradYearCount[m.AlumnusGradYear]++
+				stat.TotalUploads++
+
+				originFileExt := filepath.Ext(m.SaveAsName)
+				//save to each Educator's folder
+				for _, eduName := range m.ForEducators {
+					stat.ExportAttempts++
+					stat.EduCount[eduName]++
+					err := saveMediaFile(exp2dir, eduName, m.AlumnusName, m.AlumnusGradYear, originFileExt, filedata)
+					if err != nil {
+						stat.ExportFails++
+						s.serverErrorWithMsg(w, err, fmt.Sprintf(`save media file failed: exp2dir:%v eduName:%v AlumnusName:%v AlumnusGradYear:%v fileExt:%s`, exp2dir, eduName, m.AlumnusName, m.AlumnusGradYear, originFileExt))
+					}
+				}
+
+			}
+			absPath, _ := filepath.Abs(exp2dir)
+			asJSON, err2 := json.Marshal(stat)
+			if err2 != nil {
+				s.serverErrorWithMsg(w, err2, fmt.Sprintf(`Json marshal failed: %+v`, stat))
+
+			}
+			msg := fmt.Sprintf("export to %s\n stat: %s", absPath, asJSON)
+			http.Error(w, msg, http.StatusOK)
 		default:
 			fmt.Fprintf(w, "Not handled http method for url %s:%s", r.URL, r.Method)
 		}
