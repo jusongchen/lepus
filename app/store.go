@@ -147,8 +147,7 @@ func (s *lepus) getUploadedMedia(from time.Time, to time.Time) ([]Media, error) 
 
 	media := []Media{}
 
-	sqltext := `select id,alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,real_ip 
-	from media`
+	sqltext := `select id,alumnus_name ,alumnus_gradyear , media_type , filename , filesize , origin_filename , upload_datetime, upload_duration,real_ip from media`
 
 	// result, err := stmt.Exec(prof.Name, prof.GradYear, string(educatorsJSON), time.Now().Format(time.RFC3339))
 
