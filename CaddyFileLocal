@@ -1,0 +1,20 @@
+localhost:80 {
+    proxy / 127.0.0.1:8080 {
+        transparent
+    }
+
+    header /resources {
+        Cache-Control "max-age=60"
+    }
+
+    header / {
+
+        # Enable cross-site filter (XSS) and tell browser to block detected attacks
+        X-XSS-Protection "1; mode=block"
+        
+        # Prevent some browsers from MIME-sniffing a response away from the declared Content-Type
+        X-Content-Type-Options "nosniff"
+    }
+
+    log caddy.log
+}

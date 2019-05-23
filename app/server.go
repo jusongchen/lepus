@@ -32,6 +32,7 @@ type lepus struct {
 	errorLog      *log.Logger
 	lepusHomeDir  string
 	receiveDir    string
+	export2Dir    string
 	staticHomeDir string
 	imageDir      string
 	educatorNames []string
@@ -51,10 +52,12 @@ func Start(db *sql.DB, sessionKey, addr, lepusHomeDir, staticHomeDir, receiveDir
 	// .New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	s = lepus{
-		router:        chi.NewRouter(),
-		addr:          addr,
-		lepusHomeDir:  lepusHomeDir,
-		receiveDir:    receiveDir,
+		router:       chi.NewRouter(),
+		addr:         addr,
+		lepusHomeDir: lepusHomeDir,
+		receiveDir:   receiveDir,
+		// export images to <lepusHomeDir>/<export2Dir>
+		export2Dir:    "exp",
 		staticHomeDir: staticHomeDir,
 		imageDir:      imageDir,
 		viewPath:      viewPath,

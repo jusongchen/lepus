@@ -3,8 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	sql "github.com/jmoiron/sqlx"
 	"time"
+
+	sql "github.com/jmoiron/sqlx"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -141,7 +142,7 @@ func (s *lepus) SaveUpload(u *UploadReport) error {
 	return nil
 }
 
-// SaveSignup return alumnusID if suceed
+// getUploadedMedia return []Media
 func (s *lepus) getUploadedMedia(from time.Time, to time.Time) ([]Media, error) {
 
 	media := []Media{}
@@ -171,4 +172,18 @@ func (s *lepus) getUploadedMedia(from time.Time, to time.Time) ([]Media, error) 
 	}
 
 	return media, nil
+}
+
+// read media data from DB for a specific mediaID
+func (s *lepus) getMediaDataByID(mediaID int64) ([]byte, error) {
+
+	// result, err := stmt.Exec(prof.Name, prof.GradYear, string(educatorsJSON), time.Now().Format(time.RFC3339))
+	filedata := []byte{}
+	sqltext := `select filedata	from media where id=?`
+	err := s.store.DB.Get(&filedata, sqltext, mediaID)
+	if err != nil {
+		log.WithError(err).Errorf("sql execution failed:%v", sqltext)
+		return nil, err
+	}
+	return filedata, nil
 }
