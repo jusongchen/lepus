@@ -2,7 +2,7 @@
 PROJECT?=github.com/jusongchen/lepus
 PORT?=8080
 
-RELEASE?=1.0.0
+RELEASE?=1.0.1
 COMMIT?=$(shell git rev-parse --short HEAD)
 BUILD_TIME?=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
