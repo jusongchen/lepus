@@ -16,3 +16,4 @@ exp/
 caddy.log
 dist-win64/lepus-win64.7z
 dist-win64/lepus-win64.zip
+docs/campaign-letter.pdf
