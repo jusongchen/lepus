@@ -46,7 +46,7 @@ run: osx
 	rm -fr ../lepus-tmp/lepus-osx || true 
 	unzip ./dist-osx/lepus-osx.zip -d ../lepus-tmp/lepus-osx
 	open http://localhost:8081
-	cd ../lepus-tmp && LEPUS_SESSION_KEY=IUY!YHG@GBE#VFR4ytk5nhs6jwh7hni8	lepus-osx/lepus -port 8081
+	cd ../lepus-tmp && LEPUS_SESSION_KEY=IUY2YHG@GBE#VFR4ytk5nhs6jwh7hni8 lepus-osx/lepus -port 8081
 
 
 test:

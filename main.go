@@ -5,14 +5,15 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	// "database/sql"
-	sql "github.com/jmoiron/sqlx"
 	"os"
 	"path/filepath"
 
-	"github.com/jusongchen/lepus/version"
+	sql "github.com/jmoiron/sqlx"
 
 	"github.com/jusongchen/lepus/app"
+	"github.com/jusongchen/lepus/version"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
