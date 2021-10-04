@@ -33,7 +33,8 @@ func (s *lepus) routes(staticDir string) {
 		DisableTimestamp: true,
 	}
 	r := s.router
-	r.Use(NewStructuredLogger(logger))
+	// r.Use(NewStructuredLogger(logger))
+	r.Use(middleware.Logger)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
